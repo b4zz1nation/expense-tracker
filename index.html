@@ -6,15 +6,16 @@
 <title>Dipper — Expense Tracker</title>
 <style>
   :root {
-    --bg: #f5f5f7;
+    --bg: #f3f4f6;
     --panel: #ffffff;
-    --text: #1d1d1f;
-    --muted: #6e6e73;
-    --border: #e5e5ea;
-    --accent: #0a84ff;
-    --ok: #34c759;
-    --warn: #ff9f0a;
-    --danger: #ff3b30;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --accent: #2563eb;
+    --ok: #10b981;
+    --warn: #f59e0b;
+    --danger: #ef4444;
+    --nav-h: 56px;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -25,68 +26,95 @@
     min-height: 100vh;
     line-height: 1.4;
   }
-  .wrap {
-    max-width: 1100px;
+  .app {
+    max-width: 960px;
     margin: 0 auto;
-    padding: 24px 18px 40px;
+    padding: 18px 16px 32px;
   }
   header {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 16px;
-    margin-bottom: 22px;
+    gap: 14px;
+    margin-bottom: 16px;
   }
-  .brand { font-weight: 800; letter-spacing: -0.3px; color: var(--text); }
-  .pill {
-    background: var(--panel);
+  .brand { font-weight: 800; letter-spacing: -0.4px; }
+  nav {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: rgba(243,244,246,0.85);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    margin: 0 -16px 18px;
+    padding: 10px 16px 0;
+  }
+  .tabs {
+    display: flex;
+    gap: 6px;
+  }
+  .tab {
+    background: transparent;
     color: var(--muted);
-    border: 1px solid var(--border);
+    border: none;
     padding: 8px 12px;
-    border-radius: 999px;
-    font-size: 12px;
+    border-radius: 10px 10px 0 0;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
   }
-  .grid {
-    display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
-    gap: 18px;
+  .tab.active {
+    color: var(--text);
+    border-bottom-color: var(--accent);
+    background: var(--panel);
   }
-  @media (max-width: 860px) {
-    .grid { grid-template-columns: 1fr; }
-  }
+  .screen { display: none; }
+  .screen.show { display: block; }
   .card {
     background: var(--panel);
     border: 1px solid var(--border);
-    border-radius: 18px;
-    padding: 18px;
-    margin-bottom: 16px;
+    border-radius: 16px;
+    padding: 16px;
+    margin-bottom: 14px;
   }
   .section-title {
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 0.3px;
     color: var(--muted);
-    margin: 0 0 10px;
+    margin: 0 0 8px;
   }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; }
-  input, select, button {
+  .grid { display: grid; gap: 14px; }
+  .grid-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid-3 { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 640px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+  }
+  .stat {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .stat-meta { color: var(--muted); font-size: 13px; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input, select, button, textarea {
     font: inherit;
     color: inherit;
   }
-  input, select {
-    padding: 10px 12px;
-    border-radius: 12px;
+  input, select, textarea {
+    padding: 9px 11px;
+    border-radius: 11px;
     border: 1px solid var(--border);
     background: #fbfbfd;
     min-width: 0;
   }
-  input[type="text"], input[type="number"] { flex: 1 1 140px; }
+  input[type="text"], input[type="number"], textarea { flex: 1 1 120px; }
   button {
     background: var(--accent);
     color: #fff;
     border: none;
-    padding: 10px 14px;
-    border-radius: 12px;
+    padding: 9px 13px;
+    border-radius: 11px;
     font-weight: 700;
     cursor: pointer;
   }
@@ -128,12 +156,6 @@
   }
   .num { font-variant-numeric: tabular-nums; }
   .right { text-align: right; }
-  .summary-line {
-    display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    padding: 8px 0;
-  }
   .bar {
     height: 10px;
     border-radius: 999px;
@@ -143,242 +165,460 @@
     margin-top: 8px;
   }
   .bar > span { height: 100%; }
+  .empty {
+    color: var(--muted);
+    text-align: center;
+    padding: 18px;
+    font-size: 14px;
+  }
+  .donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .donut {
+    width: 160px;
+    height: 160px;
+    border-radius: 50%;
+    background: conic-gradient(#eee 0% 100%);
+    position: relative;
+  }
+  .donut::after {
+    content: '';
+    position: absolute;
+    inset: 28px;
+    background: var(--panel);
+    border-radius: 50%;
+  }
+  .legend {
+    display: grid;
+    gap: 6px;
+    font-size: 13px;
+  }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
 </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">Dipper — Expense Tracker</div>
-      <div class="pill">local • no account needed</div>
-    </header>
+<div class="app">
+  <header>
+    <div class="brand">Dipper — Expense Tracker</div>
+    <div class="pill" id="clock">local</div>
+  </header>
 
-    <div class="grid">
-      <div>
-        <div class="card">
-          <p class="section-title">Add expense</p>
-          <div class="row">
-            <input id="title" type="text" placeholder="Coffee, Rent, Uber..." />
-            <input id="amount" type="number" placeholder="0.00" min="0" step="0.01" />
-            <select id="category">
-              <option value="Food">Food</option>
-              <option value="Transport">Transport</option>
-              <option value="Shopping">Shopping</option>
-              <option value="Bills">Bills</option>
-              <option value="Entertainment">Entertainment</option>
-              <option value="Health">Health</option>
-              <option value="Other">Other</option>
-            </select>
-            <input id="note" type="text" placeholder="Note (optional)" />
-            <button id="add">Add</button>
-          </div>
-        </div>
+  <nav>
+    <div class="tabs">
+      <button class="tab active" data-screen="dashboard">Dashboard</button>
+      <button class="tab" data-screen="expenses">Expenses</button>
+      <button class="tab" data-screen="reports">Reports</button>
+    </div>
+  </nav>
 
-        <div class="card">
-          <p class="section-title">Transactions</p>
-          <div style="overflow:auto">
-            <table>
-              <thead>
-                <tr>
-                  <th>Title</th>
-                  <th>Category</th>
-                  <th>Note</th>
-                  <th class="right">Amount</th>
-                  <th class="right"></th>
-                </tr>
-              </thead>
-              <tbody id="rows"></tbody>
-            </table>
-          </div>
-          <p class="section-title" style="margin-top:14px">Actions</p>
-          <div class="row">
-            <button class="ghost" id="export">Export CSV</button>
-            <button class="danger" id="clear">Clear all</button>
-          </div>
-        </div>
+  <section class="screen show" id="screen-dashboard">
+    <div class="grid grid-3">
+      <div class="card">
+        <p class="section-title">This month</p>
+        <div class="stat" id="d-monthTotal">$0.00</div>
+        <div class="stat-meta" id="d-monthLabel"></div>
       </div>
-
-      <div>
-        <div class="card">
-          <p class="section-title">Overview</p>
-          <div class="summary-line">
-            <span>This month</span>
-            <span class="num" id="monthTotal">0.00</span>
-          </div>
-          <div class="summary-line">
-            <span>Budget</span>
-            <input id="budget" type="number" min="0" step="100" style="width:140px" />
-          </div>
-          <div class="summary-line">
-            <span>Remaining</span>
-            <span class="num" id="remaining">0.00</span>
-          </div>
-          <div class="bar"><span id="budgetBar"></span></div>
+      <div class="card">
+        <p class="section-title">Budget</p>
+        <div class="row">
+          <input id="budget" type="number" min="0" step="100" style="width:120px" />
+          <button class="ghost" id="setBudget">Set</button>
         </div>
-
-        <div class="card">
-          <p class="section-title">By category</p>
-          <div id="catBreakdown"></div>
-        </div>
+        <div class="stat-meta">Remaining: <span class="num" id="d-remaining">$0.00</span></div>
+        <div class="bar"><span id="d-bar"></span></div>
+      </div>
+      <div class="card">
+        <p class="section-title">All time</p>
+        <div class="stat" id="d-allTime">$0.00</div>
+        <div class="stat-meta" id="d-count">0 transactions</div>
       </div>
     </div>
-  </div>
+
+    <div class="card">
+      <p class="section-title">Category split</p>
+      <div class="donut-wrap">
+        <div class="donut" id="d-donut"></div>
+        <div class="legend" id="d-legend"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">Recent transactions</p>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Category</th>
+              <th class="right">Amount</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody id="d-recent"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-expenses">
+    <div class="card">
+      <p class="section-title">Add expense</p>
+      <div class="row">
+        <input id="e-title" type="text" placeholder="Title" />
+        <input id="e-amount" type="number" placeholder="0.00" min="0" step="0.01" />
+        <select id="e-category">
+          <option>Food</option>
+          <option>Transport</option>
+          <option>Shopping</option>
+          <option>Bills</option>
+          <option>Entertainment</option>
+          <option>Health</option>
+          <option>Other</option>
+        </select>
+        <input id="e-note" type="text" placeholder="Note" />
+        <input id="e-date" type="date" />
+        <button id="e-add">Add</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <p class="section-title">All expenses</p>
+      <div class="row" style="margin-bottom:10px">
+        <input id="e-filter" type="text" placeholder="Search..." style="max-width:220px" />
+        <select id="e-filterCat">
+          <option value="">All categories</option>
+          <option>Food</option>
+          <option>Transport</option>
+          <option>Shopping</option>
+          <option>Bills</option>
+          <option>Entertainment</option>
+          <option>Health</option>
+          <option>Other</option>
+        </select>
+        <button class="ghost" id="e-export">Export CSV</button>
+      </div>
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Note</th>
+              <th class="right">Amount</th>
+              <th>Date</th>
+              <th class="right"></th>
+            </tr>
+          </thead>
+          <tbody id="e-rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-reports">
+    <div class="card">
+      <p class="section-title">Spending by category (this month)</p>
+      <div id="r-bars"></div>
+    </div>
+    <div class="grid grid-2">
+      <div class="card">
+        <p class="section-title">Top expenses</p>
+        <div id="r-top"></div>
+      </div>
+      <div class="card">
+        <p class="section-title">Daily spend (last 14 days)</p>
+        <canvas id="r-chart" height="180"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div class="row">
+        <button class="danger" id="clearMonth">Clear this month</button>
+      </div>
+    </div>
+  </section>
+</div>
 
 <script>
 (() => {
-  const LS_KEY = 'expenses_v1';
+  const LS = 'expenses_v2';
   const categories = ['Food','Transport','Shopping','Bills','Entertainment','Health','Other'];
   const colors = {
-    Food: '#ff9f0a',
-    Transport: '#0a84ff',
-    Shopping: '#bf5af2',
-    Bills: '#ff3b30',
-    Entertainment: '#30d158',
-    Health: '#ff375f',
-    Other: '#8e8e93',
+    Food: '#f59e0b',
+    Transport: '#3b82f6',
+    Shopping: '#8b5cf6',
+    Bills: '#ef4444',
+    Entertainment: '#10b981',
+    Health: '#f43f5e',
+    Other: '#9ca3af',
   };
-
-  const load = () => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  };
-  const save = (items) => localStorage.setItem(LS_KEY, JSON.stringify(items));
-
+  const load = () => { try { return JSON.parse(localStorage.getItem(LS)) || []; } catch { return []; } };
+  const save = (d) => localStorage.setItem(LS, JSON.stringify(d));
   let expenses = load();
-
   const q = (id) => document.getElementById(id);
   const fmt = (n) => Number(n).toFixed(2);
 
-  const render = () => {
-    const tbody = q('rows');
-    tbody.innerHTML = '';
-    const now = new Date();
-    const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-    const m = monthKey(now);
+  const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+  const today = new Date();
+  const thisMonth = monthKey(today);
 
-    let monthTotal = 0;
-    const catTotals = {};
-    categories.forEach(c => catTotals[c] = 0);
+  const init = () => {
+    q('e-date').value = today.toISOString().slice(0,10);
+    q('budget').value = localStorage.getItem(LS+'_budget') || '';
+    bindTabs();
+    bindExpenses();
+    bindReports();
+    bindDashboard();
+    renderAll();
+  };
 
-    expenses.forEach((e, idx) => {
-      const d = new Date(e.date);
-      if (monthKey(d) === m) monthTotal += e.amount;
-      catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+  const bindTabs = () => {
+    document.querySelectorAll('.tab').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+        btn.classList.add('active');
+        q('screen-' + btn.dataset.screen).classList.add('show');
+      });
+    });
+  };
+
+  const renderAll = () => {
+    renderDash();
+    renderExpenses();
+    renderReports();
+  };
+
+  // ===== Dashboard =====
+  const renderDash = () => {
+    let monthTotal = 0, allTime = 0;
+    const catTotals = {}; categories.forEach(c => catTotals[c] = 0);
+    expenses.forEach(e => {
+      const amt = Number(e.amount);
+      allTime += amt;
+      if (monthKey(new Date(e.date)) === thisMonth) monthTotal += amt;
+      catTotals[e.category] = (catTotals[e.category] || 0) + amt;
     });
 
-    q('monthTotal').textContent = '$' + fmt(monthTotal);
     const budget = Number(q('budget').value || 0);
     const remaining = budget - monthTotal;
+
+    q('d-monthTotal').textContent = '$' + fmt(monthTotal);
+    q('d-monthLabel').textContent = today.toLocaleString('default', { month: 'long', year: 'numeric' });
     q('remaining').textContent = '$' + fmt(remaining);
+    q('d-remaining').textContent = '$' + fmt(remaining);
+    q('d-allTime').textContent = '$' + fmt(allTime);
+    q('d-count').textContent = expenses.length + ' transactions';
 
     const pct = budget > 0 ? Math.max(0, Math.min(100, (monthTotal / budget) * 100)) : 0;
-    const bar = q('budgetBar');
+    const bar = q('d-bar');
     bar.style.width = pct + '%';
     bar.style.background = pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warn)' : 'var(--ok)';
 
-    // rows
-    [...expenses].reverse().forEach((e, i) => {
+    // Donut
+    const total = Object.values(catTotals).reduce((a,b)=>a+b,0);
+    const donut = q('d-donut');
+    let grad = [];
+    let angle = 0;
+    categories.forEach(c => {
+      const v = catTotals[c] || 0;
+      if (v > 0 && total > 0) {
+        const slice = (v / total) * 100;
+        grad.push(`${colors[c]} ${angle}% ${angle+slice}%`);
+        angle += slice;
+      }
+    });
+    donut.style.background = grad.length ? `conic-gradient(${grad.join(', ')})` : '#eee';
+
+    const legend = q('d-legend');
+    legend.innerHTML = '';
+    categories.forEach(c => {
+      const v = catTotals[c] || 0;
+      if (!v) return;
+      const row = document.createElement('div');
+      row.innerHTML = `<span><span class="cat-dot" style="background:${colors[c]}"></span>${c}</span>
+                       <span class="num">$${fmt(v)}</span>`;
+      legend.appendChild(row);
+    });
+
+    // Recent
+    const tbody = q('d-recent');
+    tbody.innerHTML = '';
+    [...expenses].reverse().slice(0, 8).forEach(e => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(e.title)}</td>
+        <td><span class="cat-dot" style="background:${colors[e.category]||colors.Other}"></span>${e.category}</td>
+        <td class="right num">$${fmt(e.amount)}</td>
+        <td>${new Date(e.date).toLocaleDateString()}</td>
+      `;
+      tbody.appendChild(tr);
+    });
+  };
+
+  // ===== Expenses screen =====
+  const bindExpenses = () => {
+    q('e-add').addEventListener('click', () => {
+      const title = q('e-title').value.trim();
+      const amount = Number(q('e-amount').value);
+      const category = q('e-category').value;
+      const note = q('e-note').value.trim();
+      const date = q('e-date').value;
+      if (!title || !amount || amount <= 0) { alert('Title and valid amount required.'); return; }
+      expenses.push({ id: Date.now(), date: date || new Date().toISOString(), title, amount, category, note });
+      q('e-title').value = ''; q('e-amount').value = ''; q('e-note').value = '';
+      save(expenses); renderAll();
+    });
+
+    q('e-rows').addEventListener('click', (ev) => {
+      const btn = ev.target.closest('button[data-i]');
+      if (!btn) return;
+      const i = Number(btn.getAttribute('data-i'));
+      expenses.splice(i, 1);
+      save(expenses); renderAll();
+    });
+
+    q('e-filter').addEventListener('input', renderExpenses);
+    q('e-filterCat').addEventListener('change', renderExpenses);
+
+    q('e-export').addEventListener('click', () => {
+      const header = ['date','title','category','note','amount'];
+      const csv = [header.join(','), ...expenses.map(e => [e.date,e.title,e.category,e.note,e.amount].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))].join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'expenses.csv';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    });
+
+    q('budget').addEventListener('input', () => {
+      localStorage.setItem(LS+'_budget', q('budget').value || '');
+      renderDash();
+    });
+    q('setBudget').addEventListener('click', () => {
+      localStorage.setItem(LS+'_budget', q('budget').value || '');
+      renderDash();
+    });
+  };
+
+  const renderExpenses = () => {
+    const term = (q('e-filter').value || '').toLowerCase();
+    const cat = q('e-filterCat').value;
+    const list = expenses.filter(e => {
+      const matchText = !term || (e.title + ' ' + (e.note||'')).toLowerCase().includes(term);
+      const matchCat = !cat || e.category === cat;
+      return matchText && matchCat;
+    });
+
+    const tbody = q('e-rows');
+    tbody.innerHTML = '';
+    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No expenses found</td></tr>'; return; }
+    list.forEach((e, idx) => {
+      // compute real index in expenses array for deletion
+      const realIdx = expenses.indexOf(e);
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${escapeHtml(e.title)}</td>
         <td><span class="cat-dot" style="background:${colors[e.category]||colors.Other}"></span>${e.category}</td>
         <td class="muted">${escapeHtml(e.note || '')}</td>
         <td class="right num">$${fmt(e.amount)}</td>
-        <td class="right"><button class="danger" data-i="${expenses.length - 1 - i}">Delete</button></td>
+        <td>${new Date(e.date).toLocaleDateString()}</td>
+        <td class="right"><button class="danger" data-i="${realIdx}">Delete</button></td>
       `;
       tbody.appendChild(tr);
     });
+  };
 
-    // category breakdown
-    const cb = q('catBreakdown');
-    cb.innerHTML = '';
+  // ===== Reports =====
+  const bindReports = () => {
+    q('clearMonth').addEventListener('click', () => {
+      if (!confirm('Delete all expenses for ' + today.toLocaleString('default',{month:'long'}) + '?')) return;
+      expenses = expenses.filter(e => monthKey(new Date(e.date)) !== thisMonth);
+      save(expenses); renderAll();
+    });
+  };
+
+  const renderReports = () => {
+    // Category bars for this month
+    const catTotals = {}; categories.forEach(c => catTotals[c] = 0);
+    let monthTotal = 0;
+    expenses.forEach(e => {
+      if (monthKey(new Date(e.date)) === thisMonth) {
+        monthTotal += Number(e.amount);
+        catTotals[e.category] = (catTotals[e.category] || 0) + Number(e.amount);
+      }
+    });
+    const bars = q('r-bars');
+    bars.innerHTML = '';
     categories.forEach(c => {
       const v = catTotals[c] || 0;
+      const pct = monthTotal ? (v / monthTotal) * 100 : 0;
+      const row = document.createElement('div');
+      row.className = 'summary-line';
+      row.style.marginBottom = '8px';
+      row.innerHTML = `
+        <span style="display:flex;justify-content:space-between;width:100%">
+          <span><span class="cat-dot" style="background:${colors[c]}"></span>${c}</span>
+          <span class="num">$${fmt(v)} · ${fmt(pct)}%</span>
+        </span>
+        <div class="bar"><span style="width:${pct}%;background:${colors[c]}"></span></div>
+      `;
+      bars.appendChild(row);
+    });
+
+    // Top expenses
+    const top = [...expenses].sort((a,b)=>b.amount-a.amount).slice(0,5);
+    const topEl = q('r-top');
+    topEl.innerHTML = '';
+    top.forEach(e => {
       const row = document.createElement('div');
       row.className = 'summary-line';
       row.innerHTML = `
-        <span><span class="cat-dot" style="background:${colors[c]}"></span>${c}</span>
-        <span class="num">$${fmt(v)}</span>
+        <span>${escapeHtml(e.title)} <span class="muted" style="font-size:12px">${new Date(e.date).toLocaleDateString()}</span></span>
+        <span class="num">$${fmt(e.amount)}</span>
       `;
-      cb.appendChild(row);
+      topEl.appendChild(row);
     });
-  };
+    if (!top.length) topEl.innerHTML = '<div class="empty">No data yet</div>';
 
-  const escapeHtml = (s) => {
-    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-  };
-
-  const addExpense = () => {
-    const title = q('title').value.trim();
-    const amount = Number(q('amount').value);
-    const category = q('category').value;
-    const note = q('note').value.trim();
-
-    if (!title || !amount || amount <= 0) {
-      alert('Please enter a title and a valid amount.');
-      return;
+    // Daily sparkline for last 14 days
+    const days = {};
+    for (let i = 13; i >= 0; i--) {
+      const d = new Date(); d.setDate(d.getDate() - i);
+      const k = d.toISOString().slice(0,10);
+      days[k] = 0;
     }
-
-    expenses.push({
-      id: Date.now(),
-      date: new Date().toISOString(),
-      title,
-      amount,
-      category,
-      note,
+    expenses.forEach(e => {
+      const k = e.date.slice(0,10);
+      if (k in days) days[k] += Number(e.amount);
     });
-
-    q('title').value = '';
-    q('amount').value = '';
-    q('note').value = '';
-    save(expenses);
-    render();
-  };
-
-  q('add').addEventListener('click', addExpense);
-
-  q('rows').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-i]');
-    if (!btn) return;
-    const i = Number(btn.getAttribute('data-i'));
-    expenses.splice(i, 1);
-    save(expenses);
-    render();
-  });
-
-  q('clear').addEventListener('click', () => {
-    if (confirm('Clear all expenses for this month?')) {
-      const now = new Date();
-      const m = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-      expenses = expenses.filter(e => {
-        const d = new Date(e.date);
-        const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-        return mk !== m;
+    const vals = Object.values(days);
+    const canvas = q('r-chart');
+    if (canvas.getContext) {
+      const ctx = canvas.getContext('2d');
+      const W = canvas.width = 320;
+      const H = canvas.height = 180;
+      ctx.clearRect(0,0,W,H);
+      const max = Math.max(...vals, 1);
+      const step = W / (vals.length - 1);
+      ctx.beginPath();
+      ctx.strokeStyle = '#2563eb';
+      ctx.lineWidth = 2;
+      vals.forEach((v, i) => {
+        const x = i * step;
+        const y = H - (v / max) * (H - 16) - 8;
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
       });
-      save(expenses);
-      render();
+      ctx.stroke();
     }
-  });
+  };
 
-  q('export').addEventListener('click', () => {
-    const header = ['date','title','category','note','amount'];
-    const rows = expenses.map(e => [e.date, e.title, e.category, e.note, e.amount].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
-    const csv = [header.join(','), ...rows].join('\n');
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'expenses.csv';
-    a.click();
-    URL.revokeObjectURL(url);
-  });
+  const escapeHtml = (s) => String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 
-  q('budget').addEventListener('input', render);
-
-  render();
+  init();
 })();
 </script>
 </body>
