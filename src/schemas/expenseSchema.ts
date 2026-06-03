@@ -23,6 +23,7 @@ export const expenseItemSchema = z.object({
 export const expenseSchema = z.object({
   categoryId: z.enum(categoryIds),
   spentOn: z.string().refine(isDateString, 'Use YYYY-MM-DD.'),
+  groupNote: z.string().trim().max(80, 'Group note must be 80 characters or less.'),
   items: z.array(expenseItemSchema).min(1, 'Add at least one item.').max(25, 'Add 25 items or fewer.'),
 });
 

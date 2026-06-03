@@ -1,5 +1,5 @@
 export const CATEGORIES = [
-  { id: 'food', name: 'Food', emoji: '🍔', color: '#F97316' },
+  { id: 'food', name: 'Food', emoji: '🍖', color: '#F97316' },
   { id: 'transport', name: 'Transport', emoji: '🚗', color: '#3B82F6' },
   { id: 'shopping', name: 'Shopping', emoji: '🛍️', color: '#A855F7' },
   { id: 'bills', name: 'Bills', emoji: '🧾', color: '#EF4444' },

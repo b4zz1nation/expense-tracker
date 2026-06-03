@@ -36,6 +36,10 @@ function findAndroidSdk() {
 
 const env = { ...process.env };
 
+// WSL + Windows-mounted projects often miss file events, which breaks Fast Refresh.
+// Polling is slower, but it reliably detects changes under /mnt/c.
+env.CHOKIDAR_USEPOLLING = env.CHOKIDAR_USEPOLLING || '1';
+
 // On Windows with newer Node versions, localhost can resolve to IPv6 (::1)
 // first. Expo then advertises exp://127.0.0.1:8081 to the emulator, but
 // Metro is only listening on ::1, so Expo Go fails with "failed to download
