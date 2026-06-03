@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dipper — Expense Tracker</title>
+<style>
+  :root {
+    --bg: #f5f5f7;
+    --panel: #ffffff;
+    --text: #1d1d1f;
+    --muted: #6e6e73;
+    --border: #e5e5ea;
+    --accent: #0a84ff;
+    --ok: #34c759;
+    --warn: #ff9f0a;
+    --danger: #ff3b30;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", Roboto, Inter, "Helvetica Neue", Arial, sans-serif;
+    min-height: 100vh;
+    line-height: 1.4;
+  }
+  .wrap {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 24px 18px 40px;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .brand { font-weight: 800; letter-spacing: -0.3px; color: var(--text); }
+  .pill {
+    background: var(--panel);
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1.1fr 0.9fr;
+    gap: 18px;
+  }
+  @media (max-width: 860px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 18px;
+    margin-bottom: 16px;
+  }
+  .section-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    color: var(--muted);
+    margin: 0 0 10px;
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input, select, button {
+    font: inherit;
+    color: inherit;
+  }
+  input, select {
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: #fbfbfd;
+    min-width: 0;
+  }
+  input[type="text"], input[type="number"] { flex: 1 1 140px; }
+  button {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  button:hover { filter: brightness(1.05); }
+  button.ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  button.danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid #ffd6d3;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th {
+    text-align: left;
+    color: var(--muted);
+    font-weight: 600;
+    font-size: 12px;
+    padding: 8px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  td {
+    padding: 10px 6px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .cat-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    margin-right: 8px;
+  }
+  .num { font-variant-numeric: tabular-nums; }
+  .right { text-align: right; }
+  .summary-line {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+  }
+  .bar {
+    height: 10px;
+    border-radius: 999px;
+    background: #e9e9ef;
+    overflow: hidden;
+    display: flex;
+    margin-top: 8px;
+  }
+  .bar > span { height: 100%; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">Dipper — Expense Tracker</div>
+      <div class="pill">local • no account needed</div>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <p class="section-title">Add expense</p>
+          <div class="row">
+            <input id="title" type="text" placeholder="Coffee, Rent, Uber..." />
+            <input id="amount" type="number" placeholder="0.00" min="0" step="0.01" />
+            <select id="category">
+              <option value="Food">Food</option>
+              <option value="Transport">Transport</option>
+              <option value="Shopping">Shopping</option>
+              <option value="Bills">Bills</option>
+              <option value="Entertainment">Entertainment</option>
+              <option value="Health">Health</option>
+              <option value="Other">Other</option>
+            </select>
+            <input id="note" type="text" placeholder="Note (optional)" />
+            <button id="add">Add</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <p class="section-title">Transactions</p>
+          <div style="overflow:auto">
+            <table>
+              <thead>
+                <tr>
+                  <th>Title</th>
+                  <th>Category</th>
+                  <th>Note</th>
+                  <th class="right">Amount</th>
+                  <th class="right"></th>
+                </tr>
+              </thead>
+              <tbody id="rows"></tbody>
+            </table>
+          </div>
+          <p class="section-title" style="margin-top:14px">Actions</p>
+          <div class="row">
+            <button class="ghost" id="export">Export CSV</button>
+            <button class="danger" id="clear">Clear all</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <p class="section-title">Overview</p>
+          <div class="summary-line">
+            <span>This month</span>
+            <span class="num" id="monthTotal">0.00</span>
+          </div>
+          <div class="summary-line">
+            <span>Budget</span>
+            <input id="budget" type="number" min="0" step="100" style="width:140px" />
+          </div>
+          <div class="summary-line">
+            <span>Remaining</span>
+            <span class="num" id="remaining">0.00</span>
+          </div>
+          <div class="bar"><span id="budgetBar"></span></div>
+        </div>
+
+        <div class="card">
+          <p class="section-title">By category</p>
+          <div id="catBreakdown"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(() => {
+  const LS_KEY = 'expenses_v1';
+  const categories = ['Food','Transport','Shopping','Bills','Entertainment','Health','Other'];
+  const colors = {
+    Food: '#ff9f0a',
+    Transport: '#0a84ff',
+    Shopping: '#bf5af2',
+    Bills: '#ff3b30',
+    Entertainment: '#30d158',
+    Health: '#ff375f',
+    Other: '#8e8e93',
+  };
+
+  const load = () => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  };
+  const save = (items) => localStorage.setItem(LS_KEY, JSON.stringify(items));
+
+  let expenses = load();
+
+  const q = (id) => document.getElementById(id);
+  const fmt = (n) => Number(n).toFixed(2);
+
+  const render = () => {
+    const tbody = q('rows');
+    tbody.innerHTML = '';
+    const now = new Date();
+    const monthKey = (d) => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    const m = monthKey(now);
+
+    let monthTotal = 0;
+    const catTotals = {};
+    categories.forEach(c => catTotals[c] = 0);
+
+    expenses.forEach((e, idx) => {
+      const d = new Date(e.date);
+      if (monthKey(d) === m) monthTotal += e.amount;
+      catTotals[e.category] = (catTotals[e.category] || 0) + e.amount;
+    });
+
+    q('monthTotal').textContent = '$' + fmt(monthTotal);
+    const budget = Number(q('budget').value || 0);
+    const remaining = budget - monthTotal;
+    q('remaining').textContent = '$' + fmt(remaining);
+
+    const pct = budget > 0 ? Math.max(0, Math.min(100, (monthTotal / budget) * 100)) : 0;
+    const bar = q('budgetBar');
+    bar.style.width = pct + '%';
+    bar.style.background = pct > 90 ? 'var(--danger)' : pct > 70 ? 'var(--warn)' : 'var(--ok)';
+
+    // rows
+    [...expenses].reverse().forEach((e, i) => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${escapeHtml(e.title)}</td>
+        <td><span class="cat-dot" style="background:${colors[e.category]||colors.Other}"></span>${e.category}</td>
+        <td class="muted">${escapeHtml(e.note || '')}</td>
+        <td class="right num">$${fmt(e.amount)}</td>
+        <td class="right"><button class="danger" data-i="${expenses.length - 1 - i}">Delete</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // category breakdown
+    const cb = q('catBreakdown');
+    cb.innerHTML = '';
+    categories.forEach(c => {
+      const v = catTotals[c] || 0;
+      const row = document.createElement('div');
+      row.className = 'summary-line';
+      row.innerHTML = `
+        <span><span class="cat-dot" style="background:${colors[c]}"></span>${c}</span>
+        <span class="num">$${fmt(v)}</span>
+      `;
+      cb.appendChild(row);
+    });
+  };
+
+  const escapeHtml = (s) => {
+    return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+  };
+
+  const addExpense = () => {
+    const title = q('title').value.trim();
+    const amount = Number(q('amount').value);
+    const category = q('category').value;
+    const note = q('note').value.trim();
+
+    if (!title || !amount || amount <= 0) {
+      alert('Please enter a title and a valid amount.');
+      return;
+    }
+
+    expenses.push({
+      id: Date.now(),
+      date: new Date().toISOString(),
+      title,
+      amount,
+      category,
+      note,
+    });
+
+    q('title').value = '';
+    q('amount').value = '';
+    q('note').value = '';
+    save(expenses);
+    render();
+  };
+
+  q('add').addEventListener('click', addExpense);
+
+  q('rows').addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-i]');
+    if (!btn) return;
+    const i = Number(btn.getAttribute('data-i'));
+    expenses.splice(i, 1);
+    save(expenses);
+    render();
+  });
+
+  q('clear').addEventListener('click', () => {
+    if (confirm('Clear all expenses for this month?')) {
+      const now = new Date();
+      const m = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+      expenses = expenses.filter(e => {
+        const d = new Date(e.date);
+        const mk = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+        return mk !== m;
+      });
+      save(expenses);
+      render();
+    }
+  });
+
+  q('export').addEventListener('click', () => {
+    const header = ['date','title','category','note','amount'];
+    const rows = expenses.map(e => [e.date, e.title, e.category, e.note, e.amount].map(v => `"${String(v).replace(/"/g,'""')}"`).join(','));
+    const csv = [header.join(','), ...rows].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'expenses.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  q('budget').addEventListener('input', render);
+
+  render();
+})();
+</script>
+</body>
+</html>
