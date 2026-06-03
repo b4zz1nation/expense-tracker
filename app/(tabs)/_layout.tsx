@@ -1,21 +1,14 @@
-import { Link, Tabs } from 'expo-router';
-import { Pressable, StyleSheet, Text, type ColorValue } from 'react-native';
+import { Tabs } from 'expo-router';
+import { StyleSheet, Text, type ColorValue } from 'react-native';
+import { ExpenseSheetProvider, useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 
 function TabIcon({ icon, color }: { icon: string; color: ColorValue }) {
   return <Text style={[styles.tabIcon, { color }]}>{icon}</Text>;
 }
 
-function AddButton() {
-  return (
-    <Link href="/expenses/new" asChild>
-      <Pressable accessibilityRole="button" accessibilityLabel="Add expense" style={styles.headerAction}>
-        <Text style={styles.headerActionText}>＋ Add</Text>
-      </Pressable>
-    </Link>
-  );
-}
+function TabsNavigator() {
+  const { sheetOpen } = useExpenseSheet();
 
-export default function TabsLayout() {
   return (
     <Tabs
       screenOptions={{
@@ -31,7 +24,11 @@ export default function TabsLayout() {
           paddingTop: 8,
           paddingBottom: 10,
           backgroundColor: '#FFFFFF',
-          borderTopColor: '#E2E8F0',
+          borderTopWidth: 0,
+          borderTopColor: 'transparent',
+          shadowOpacity: 0,
+          elevation: 0,
+          display: sheetOpen ? 'none' : 'flex',
         },
       }}
     >
@@ -41,7 +38,6 @@ export default function TabsLayout() {
           title: 'Dashboard',
           tabBarLabel: 'Home',
           tabBarIcon: ({ color }) => <TabIcon icon="🏠" color={color} />,
-          headerRight: AddButton,
         }}
       />
       <Tabs.Screen
@@ -50,7 +46,6 @@ export default function TabsLayout() {
           title: 'Expenses',
           tabBarLabel: 'Expenses',
           tabBarIcon: ({ color }) => <TabIcon icon="🧾" color={color} />,
-          headerRight: AddButton,
         }}
       />
       <Tabs.Screen
@@ -65,8 +60,14 @@ export default function TabsLayout() {
   );
 }
 
+export default function TabsLayout() {
+  return (
+    <ExpenseSheetProvider>
+      <TabsNavigator />
+    </ExpenseSheetProvider>
+  );
+}
+
 const styles = StyleSheet.create({
   tabIcon: { fontSize: 20 },
-  headerAction: { paddingHorizontal: 16, paddingVertical: 8 },
-  headerActionText: { color: '#2563EB', fontWeight: '800', fontSize: 15 },
 });

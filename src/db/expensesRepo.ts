@@ -1,8 +1,9 @@
 import { getDatabase } from './database';
 import { migrateDb } from './migrations';
+import { getPreferredCurrencyCode } from './settingsRepo';
 import { createId } from '../lib/ids';
 import { itemizedValuesToExpenseDrafts } from '../lib/expenseDrafts';
-import type { CategoryBreakdown, Expense, ExpenseFormValues } from '../types/expense';
+import type { CategoryBreakdown, Expense, ExpenseFormValues, ExpenseLineItem } from '../types/expense';
 
 let initPromise: Promise<void> | null = null;
 
@@ -12,6 +13,7 @@ type ExpenseRow = {
   currency: string;
   category_id: Expense['categoryId'];
   note: string;
+  items_json: string | null;
   spent_on: string;
   spent_at: string;
   created_at: string;
@@ -32,12 +34,37 @@ function rowToExpense(row: ExpenseRow): Expense {
     currency: row.currency,
     categoryId: row.category_id,
     note: row.note,
+    items: parseItemsJson(row.items_json, row.note, row.amount_cents),
     spentOn: row.spent_on,
     spentAt: row.spent_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     deletedAt: row.deleted_at,
   };
+}
+
+function parseItemsJson(itemsJson: string | null, note: string, amountCents: number): ExpenseLineItem[] {
+  if (itemsJson) {
+    try {
+      const parsed = JSON.parse(itemsJson) as unknown;
+      if (Array.isArray(parsed)) {
+        const items = parsed
+          .map((item) => {
+            if (!item || typeof item !== 'object') return null;
+            const label = typeof (item as { label?: unknown }).label === 'string' ? (item as { label: string }).label.trim() : '';
+            const itemAmount = Number((item as { amountCents?: unknown }).amountCents);
+            if (!label || !Number.isFinite(itemAmount) || itemAmount <= 0) return null;
+            return { label, amountCents: Math.round(itemAmount) } satisfies ExpenseLineItem;
+          })
+          .filter((item): item is ExpenseLineItem => Boolean(item));
+        if (items.length > 0) return items;
+      }
+    } catch {
+      // fall through to legacy single-item fallback
+    }
+  }
+
+  return [{ label: note || 'Expense', amountCents }];
 }
 
 export async function initDb(): Promise<void> {
@@ -83,16 +110,21 @@ function spentAtFromDate(spentOn: string): string {
   return new Date(`${spentOn}T12:00:00`).toISOString();
 }
 
-export async function createExpenses(values: ExpenseFormValues, currency = 'USD'): Promise<Expense[]> {
+export async function createExpenses(values: ExpenseFormValues, currency?: string): Promise<Expense[]> {
   await initDb();
   const now = new Date().toISOString();
-  const drafts = itemizedValuesToExpenseDrafts(values, currency);
-  const expenses = drafts.map((draft) => ({
+  const effectiveCurrency = (currency ?? await getPreferredCurrencyCode()).trim().toUpperCase();
+  const drafts = itemizedValuesToExpenseDrafts(values, effectiveCurrency);
+  const expenses = drafts.map((draft, index) => ({
     id: createId(),
     amountCents: draft.amountCents,
     currency: draft.currency,
     categoryId: draft.categoryId,
     note: draft.note,
+    items: values.groupNote.trim() ? values.items.map((item) => ({
+      label: item.label.trim(),
+      amountCents: Math.round(Number.parseFloat(item.amount) * 100),
+    })).filter((item) => item.label && item.amountCents > 0) : [{ label: draft.note, amountCents: draft.amountCents }],
     spentOn: draft.spentOn,
     spentAt: spentAtFromDate(draft.spentOn),
     createdAt: now,
@@ -103,14 +135,15 @@ export async function createExpenses(values: ExpenseFormValues, currency = 'USD'
   const db = await getDatabase();
   for (const expense of expenses) {
     await db.runAsync(
-      `INSERT INTO expenses (id, amount_cents, currency, category_id, note, spent_on, spent_at, created_at, updated_at, deleted_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
+      `INSERT INTO expenses (id, amount_cents, currency, category_id, note, items_json, spent_on, spent_at, created_at, updated_at, deleted_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)`,
       [
         expense.id,
         expense.amountCents,
         expense.currency,
         expense.categoryId,
         expense.note,
+        JSON.stringify(expense.items),
         expense.spentOn,
         expense.spentAt,
         expense.createdAt,
@@ -121,29 +154,81 @@ export async function createExpenses(values: ExpenseFormValues, currency = 'USD'
   return expenses;
 }
 
-export async function createExpense(values: ExpenseFormValues, currency = 'USD'): Promise<Expense> {
+export async function createExpense(values: ExpenseFormValues, currency?: string): Promise<Expense> {
   const expenses = await createExpenses(values, currency);
   const expense = expenses[0];
   if (!expense) throw new Error('Add at least one item.');
   return expense;
 }
 
-export async function updateExpense(id: string, values: ExpenseFormValues, currency = 'USD'): Promise<Expense> {
+export async function updateExpense(id: string, values: ExpenseFormValues, currency?: string): Promise<Expense> {
   await initDb();
   const updatedAt = new Date().toISOString();
-  const draft = itemizedValuesToExpenseDrafts(values, currency)[0];
+  const existingExpense = await getExpense(id);
+  if (!existingExpense) throw new Error('Expense not found.');
+  const effectiveCurrency = (currency ?? existingExpense.currency).trim().toUpperCase();
+  const draft = itemizedValuesToExpenseDrafts(values, effectiveCurrency)[0];
   if (!draft) throw new Error('Add at least one item.');
   const spentAt = spentAtFromDate(draft.spentOn);
   const db = await getDatabase();
+  const items = values.groupNote.trim()
+    ? values.items.map((item) => ({
+        label: item.label.trim(),
+        amountCents: Math.round(Number.parseFloat(item.amount) * 100),
+      })).filter((item): item is ExpenseLineItem => item.label.length > 0 && item.amountCents > 0)
+    : [{ label: draft.note, amountCents: draft.amountCents }];
   await db.runAsync(
     `UPDATE expenses
-     SET amount_cents = ?, currency = ?, category_id = ?, note = ?, spent_on = ?, spent_at = ?, updated_at = ?
+     SET amount_cents = ?, currency = ?, category_id = ?, note = ?, items_json = ?, spent_on = ?, spent_at = ?, updated_at = ?
      WHERE id = ? AND deleted_at IS NULL`,
-    [draft.amountCents, draft.currency, draft.categoryId, draft.note, draft.spentOn, spentAt, updatedAt, id],
+    [draft.amountCents, draft.currency, draft.categoryId, draft.note, JSON.stringify(items), draft.spentOn, spentAt, updatedAt, id],
   );
   const expense = await getExpense(id);
   if (!expense) throw new Error('Expense not found.');
   return expense;
+}
+
+export async function updateExpenseItem(id: string, itemIndex: number, item: ExpenseLineItem): Promise<Expense> {
+  await initDb();
+  const expense = await getExpense(id);
+  if (!expense) throw new Error('Expense not found.');
+  const items = [...expense.items];
+  if (!items[itemIndex]) throw new Error('Item not found.');
+  items[itemIndex] = { label: item.label.trim(), amountCents: item.amountCents };
+  const filtered = items.filter((entry) => entry.label && entry.amountCents > 0);
+  if (filtered.length === 0) throw new Error('Add at least one item.');
+  const amountCents = filtered.reduce((total, entry) => total + entry.amountCents, 0);
+  const db = await getDatabase();
+  const updatedAt = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE expenses
+     SET amount_cents = ?, items_json = ?, updated_at = ?
+     WHERE id = ? AND deleted_at IS NULL`,
+    [amountCents, JSON.stringify(filtered), updatedAt, id],
+  );
+  const updated = await getExpense(id);
+  if (!updated) throw new Error('Expense not found.');
+  return updated;
+}
+
+export async function deleteExpenseItem(id: string, itemIndex: number): Promise<Expense | null> {
+  await initDb();
+  const expense = await getExpense(id);
+  if (!expense) throw new Error('Expense not found.');
+  const items = expense.items.filter((_, index) => index !== itemIndex);
+  if (items.length === 0) {
+    await deleteExpense(id);
+    return null;
+  }
+  const amountCents = items.reduce((total, entry) => total + entry.amountCents, 0);
+  const db = await getDatabase();
+  await db.runAsync(
+    `UPDATE expenses
+     SET amount_cents = ?, items_json = ?, updated_at = ?
+     WHERE id = ? AND deleted_at IS NULL`,
+    [amountCents, JSON.stringify(items), new Date().toISOString(), id],
+  );
+  return getExpense(id);
 }
 
 export async function deleteExpense(id: string): Promise<void> {

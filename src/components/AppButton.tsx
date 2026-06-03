@@ -1,19 +1,21 @@
 import type { PropsWithChildren } from 'react';
+import type { StyleProp, ViewStyle } from 'react-native';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 type Props = PropsWithChildren<{
   onPress: () => void;
   variant?: 'primary' | 'secondary' | 'danger';
   disabled?: boolean;
+  style?: StyleProp<ViewStyle>;
 }>;
 
-export function AppButton({ children, onPress, variant = 'primary', disabled = false }: Props) {
+export function AppButton({ children, onPress, variant = 'primary', disabled = false, style }: Props) {
   return (
     <Pressable
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, styles[variant], disabled && styles.disabled, pressed && !disabled && styles.pressed]}
+      style={({ pressed }) => [styles.button, styles[variant], style, disabled && styles.disabled, pressed && !disabled && styles.pressed]}
     >
       <Text style={[styles.label, variant !== 'primary' && styles.secondaryLabel]}>{children}</Text>
     </Pressable>

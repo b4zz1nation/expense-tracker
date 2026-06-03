@@ -1,11 +1,17 @@
 import type { CategoryId } from '../constants/categories';
 
+export type ExpenseLineItem = {
+  label: string;
+  amountCents: number;
+};
+
 export type Expense = {
   id: string;
   amountCents: number;
   currency: string;
   categoryId: CategoryId;
   note: string;
+  items: ExpenseLineItem[];
   spentOn: string;
   spentAt: string;
   createdAt: string;
@@ -22,6 +28,7 @@ export type ExpenseFormItem = {
 export type ExpenseFormValues = {
   categoryId: CategoryId;
   spentOn: string;
+  groupNote: string;
   items: ExpenseFormItem[];
 };
 

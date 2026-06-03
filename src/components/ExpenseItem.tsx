@@ -4,7 +4,15 @@ import { formatCents } from '../lib/currency';
 import { formatDateLabel } from '../lib/dates';
 import type { Expense } from '../types/expense';
 
-export function ExpenseItem({ expense, onPress }: { expense: Expense; onPress?: () => void }) {
+export function ExpenseItem({
+  expense,
+  currencyCode,
+  onPress,
+}: {
+  expense: Expense;
+  currencyCode: string;
+  onPress?: () => void;
+}) {
   const category = getCategory(expense.categoryId);
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
@@ -12,10 +20,10 @@ export function ExpenseItem({ expense, onPress }: { expense: Expense; onPress?: 
         <Text>{category.emoji}</Text>
       </View>
       <View style={styles.body}>
-        <Text style={styles.title}>{expense.note || category.name}</Text>
+        <Text style={styles.title} numberOfLines={1}>{expense.note || category.name}</Text>
         <Text style={styles.meta}>{category.name} · {formatDateLabel(expense.spentOn)}</Text>
       </View>
-      <Text style={styles.amount}>-{formatCents(expense.amountCents, expense.currency)}</Text>
+      <Text style={styles.amount}>-{formatCents(expense.amountCents, currencyCode)}</Text>
     </Pressable>
   );
 }
