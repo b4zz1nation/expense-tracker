@@ -1,0 +1,46 @@
+{
+  "name": "expense-tracker",
+  "version": "1.0.0",
+  "main": "expo-router/entry",
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "date-fns": "^4.4.0",
+    "expo": "~56.0.8",
+    "expo-constants": "~56.0.16",
+    "expo-linking": "~56.0.13",
+    "expo-router": "~56.2.8",
+    "expo-sqlite": "~56.0.4",
+    "expo-status-bar": "~56.0.4",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "react-hook-form": "^7.77.0",
+    "react-native": "0.85.3",
+    "react-native-keyboard-aware-scroll-view": "^0.9.5",
+    "react-native-safe-area-context": "~5.7.0",
+    "react-native-screens": "4.25.2",
+    "react-native-web": "^0.21.2",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@react-native/jest-preset": "^0.85.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^29.5.14",
+    "@types/react": "~19.2.2",
+    "jest": "^29.7.0",
+    "jest-expo": "^56.0.4",
+    "typescript": "~6.0.3"
+  },
+  "scripts": {
+    "start": "expo start",
+    "android": "node scripts/start-android.js",
+    "android:lan": "node scripts/start-android.js --host lan",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "test": "jest --runInBand"
+  },
+  "private": true,
+  "jest": {
+    "preset": "jest-expo"
+  }
+}
