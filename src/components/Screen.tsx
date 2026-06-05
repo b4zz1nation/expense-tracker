@@ -1,14 +1,15 @@
 import type { PropsWithChildren } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
+  keyboardAware?: boolean;
 }>;
 
-export function Screen({ children, scroll = true }: ScreenProps) {
+export function Screen({ children, scroll = true, keyboardAware = false }: ScreenProps) {
   const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
   const styles = createStyles(theme);
@@ -16,6 +17,25 @@ export function Screen({ children, scroll = true }: ScreenProps) {
 
   if (!scroll) {
     return <View style={containerStyle}>{children}</View>;
+  }
+
+  if (!keyboardAware) {
+    return (
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={containerStyle}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
+        nestedScrollEnabled
+        scrollEventThrottle={16}
+        overScrollMode="always"
+        bounces
+        alwaysBounceVertical
+        directionalLockEnabled
+      >
+        {children}
+      </ScrollView>
+    );
   }
 
   return (
@@ -29,8 +49,11 @@ export function Screen({ children, scroll = true }: ScreenProps) {
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
       enableResetScrollToCoords={false}
-      overScrollMode="never"
-      bounces={false}
+      nestedScrollEnabled
+      scrollEventThrottle={16}
+      overScrollMode="always"
+      bounces
+      alwaysBounceVertical
     >
       {children}
     </KeyboardAwareScrollView>

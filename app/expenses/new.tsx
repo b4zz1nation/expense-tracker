@@ -27,7 +27,7 @@ export default function NewExpenseScreen() {
   };
 
   return (
-    <Screen>
+    <Screen keyboardAware>
       {currencyCode ? (
         <ExpenseForm submitLabel="Save Expense" onSubmit={submit} currencyCode={currencyCode} />
       ) : (

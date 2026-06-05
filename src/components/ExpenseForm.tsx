@@ -430,6 +430,10 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.foodModalContent}
                 style={styles.foodModalScroll}
+                nestedScrollEnabled
+                overScrollMode="always"
+                bounces
+                alwaysBounceVertical
               >
                 <Text style={styles.modalTitle}>{itemDraftIndex === null ? labels.add : labels.edit}</Text>
                 <TextInput

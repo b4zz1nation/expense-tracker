@@ -257,6 +257,9 @@ export default function SettingsScreen() {
           keyExtractor={(item) => item.code}
           keyboardShouldPersistTaps="handled"
           nestedScrollEnabled
+          overScrollMode="always"
+          bounces
+          alwaysBounceVertical
           ListEmptyComponent={(
             <View style={styles.emptyState}>
               <Text style={styles.emptyStateTitle}>No currencies found</Text>

@@ -65,15 +65,15 @@ export default function EditExpenseScreen() {
   }, [navigation, styles]);
 
   if (loading) {
-    return <Screen><ActivityIndicator /></Screen>;
+    return <Screen keyboardAware><ActivityIndicator /></Screen>;
   }
 
   if (error || !expense) {
-    return <Screen><Text style={styles.errorText}>{error ?? 'Expense not found.'}</Text></Screen>;
+    return <Screen keyboardAware><Text style={styles.errorText}>{error ?? 'Expense not found.'}</Text></Screen>;
   }
 
   return (
-    <Screen>
+    <Screen keyboardAware>
       <ExpenseForm ref={formRef} initialExpense={expense} submitLabel="Save Changes" onSubmit={submit} onDelete={remove} showSubmitButton={false} metaFieldsLayout="row" currencyCode={expense.currency} />
     </Screen>
   );

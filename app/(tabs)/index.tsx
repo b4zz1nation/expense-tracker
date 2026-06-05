@@ -140,6 +140,10 @@ export default function DashboardScreen() {
             showsHorizontalScrollIndicator={false}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.breakdownRail}
+            nestedScrollEnabled
+            overScrollMode="always"
+            bounces
+            alwaysBounceHorizontal
             renderItem={({ item }) => (
               <View
                 style={[styles.breakdownCard, styles.breakdownGaugeCard]}
@@ -200,13 +204,17 @@ export default function DashboardScreen() {
           handleStyle={styles.sheetHandle}
           backgroundStyle={styles.sheetBackground}
           detached={false}
-          enableContentPanningGesture
+          enableContentPanningGesture={false}
           enableOverDrag
           animateOnMount
         >
           <BottomSheetScrollView
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+            overScrollMode="always"
+            bounces
+            alwaysBounceVertical
             contentContainerStyle={[styles.sheetContent, { paddingBottom: 20 + sheetBottomInset }]}
           >
             <View style={styles.sheetHeader}>
@@ -237,8 +245,9 @@ export default function DashboardScreen() {
       ) : null}
 
       <Modal visible={categoryModalOpen} transparent animationType="fade" onRequestClose={() => setCategoryModalOpen(false)}>
-        <Pressable style={styles.modalOverlay} onPress={() => setCategoryModalOpen(false)}>
-          <Pressable style={styles.modalCard} onPress={() => {}}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setCategoryModalOpen(false)} />
+          <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>All categories</Text>
@@ -249,7 +258,15 @@ export default function DashboardScreen() {
               </Pressable>
             </View>
 
-            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalListContent}>
+            <ScrollView
+              style={styles.modalList}
+              showsVerticalScrollIndicator={false}
+              contentContainerStyle={styles.modalListContent}
+              nestedScrollEnabled
+              overScrollMode="always"
+              bounces
+              alwaysBounceVertical
+            >
               {categorySummaries.map((item) => (
                 <View key={item.id} style={styles.modalRow}>
                   <View style={styles.modalLeft}>
@@ -289,8 +306,8 @@ export default function DashboardScreen() {
                 </View>
               ))}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
     </Screen>
