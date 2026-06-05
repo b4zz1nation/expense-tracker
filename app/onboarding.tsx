@@ -147,7 +147,7 @@ function WelcomeStep() {
     <>
       <View style={styles.heroIconWrap}>
         <View style={styles.logoHeroIcon}>
-          <Image accessibilityLabel="Expense Tracker bean logo" source={require('../assets/icon.png')} style={styles.logoImage} />
+          <Image accessibilityLabel="Expense Tracker bean logo" source={require('../assets/bean/bean-icon-foreground 1.png')} style={styles.logoImage} />
         </View>
         <View style={styles.floatingIconPrimary}>
           <Sparkles color={colors.primary} size={20} strokeWidth={2.6} />
@@ -347,8 +347,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     progressDotCurrent: { backgroundColor: colors.primary, width: 28 },
     heroIconWrap: { alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
     heroIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 30, borderWidth: StyleSheet.hairlineWidth, height: 86, justifyContent: 'center', width: 86 },
-    logoHeroIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 30, borderWidth: StyleSheet.hairlineWidth, height: 96, justifyContent: 'center', overflow: 'hidden', width: 96 },
-    logoImage: { height: 78, resizeMode: 'contain', width: 78 },
+    logoHeroIcon: { alignItems: 'center', backgroundColor: 'transparent', borderColor: 'transparent', borderRadius: 34, borderWidth: StyleSheet.hairlineWidth, height: 124, justifyContent: 'center', overflow: 'visible', width: 124 },
+    logoImage: { height: 116, resizeMode: 'contain', width: 116 },
     floatingIconPrimary: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, bottom: -3, height: 34, justifyContent: 'center', position: 'absolute', right: -8, width: 34 },
     smallIconBubble: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, height: 66, justifyContent: 'center', marginBottom: 4, width: 66 },
     eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textAlign: 'center', textTransform: 'uppercase' },
