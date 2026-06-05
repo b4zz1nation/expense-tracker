@@ -9,7 +9,6 @@ import { AppButton } from '../../src/components/AppButton';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ExpenseItem } from '../../src/components/ExpenseItem';
 import { Screen } from '../../src/components/Screen';
-import { StatCard } from '../../src/components/StatCard';
 import { CategoryIcon } from '../../src/components/CategoryIcon';
 import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { CATEGORIES } from '../../src/constants/categories';
@@ -110,15 +109,37 @@ export default function DashboardScreen() {
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0);
   const latestDashboardExpenses = recentExpenses.slice(0, 3);
   const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
+  const remainingBudgetCents = activeBudgetCents - monthlyTotal;
+  const isOverBudget = profile ? remainingBudgetCents < 0 : false;
 
   return (
     <Screen>
       <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
 
-      <StatCard label="Total spent" value={formatCents(monthlyTotal, displayCurrencyCode)} helper={dateFilterLabel(dateFilter)} />
-      {profile ? (
-        <StatCard label="Budget" value={formatCents(activeBudgetCents, displayCurrencyCode)} helper={dateFilterBudgetLabel(dateFilter)} />
-      ) : null}
+      <View style={styles.summaryStack}>
+        <MiniStatCard
+          label="Total"
+          value={formatCents(monthlyTotal, displayCurrencyCode)}
+          helper={dateFilterLabel(dateFilter)}
+          tone="primary"
+        />
+        {profile ? (
+          <View style={styles.summaryRow}>
+            <MiniStatCard
+              label="Budget"
+              value={formatCents(activeBudgetCents, displayCurrencyCode)}
+              helper={dateFilterBudgetLabel(dateFilter)}
+              tone="income"
+            />
+            <MiniStatCard
+              label={isOverBudget ? 'Over budget' : 'Remaining'}
+              value={formatCents(Math.abs(remainingBudgetCents), displayCurrencyCode)}
+              helper={dateFilterLabel(dateFilter)}
+              tone={isOverBudget ? 'expense' : 'warning'}
+            />
+          </View>
+        ) : null}
+      </View>
       <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       {loading ? <ActivityIndicator /> : null}
@@ -314,9 +335,48 @@ export default function DashboardScreen() {
   );
 }
 
+function MiniStatCard({ label, value, helper, tone }: { label: string; value: string; helper?: string; tone: 'primary' | 'income' | 'warning' | 'expense' }) {
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
+  const { colors } = theme;
+  const toneStyle = {
+    primary: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, accentColor: colors.primary },
+    income: { backgroundColor: colors.incomeSoft, borderColor: colors.income, accentColor: colors.onIncomeSoft },
+    warning: { backgroundColor: colors.warningSoft, borderColor: colors.warning, accentColor: colors.onWarningSoft },
+    expense: { backgroundColor: colors.expenseSoft, borderColor: colors.expense, accentColor: colors.onExpenseSoft },
+  }[tone];
+
+  return (
+    <View style={[styles.miniStatCard, { backgroundColor: toneStyle.backgroundColor, borderColor: toneStyle.borderColor }]}>
+      <View style={styles.miniStatHeader}>
+        <View style={[styles.miniStatDot, { backgroundColor: toneStyle.accentColor }]} />
+        <Text style={[styles.miniStatLabel, { color: toneStyle.accentColor }]} numberOfLines={1}>{label}</Text>
+      </View>
+      <Text style={styles.miniStatValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.78}>{value}</Text>
+      {helper ? <Text style={styles.miniStatHelper} numberOfLines={1}>{helper}</Text> : null}
+    </View>
+  );
+}
+
 function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   const { colors, spacing } = theme;
   return StyleSheet.create({
+  summaryStack: { gap: 10 },
+  summaryRow: { flexDirection: 'row', gap: 10 },
+  miniStatCard: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: StyleSheet.hairlineWidth,
+    gap: 4,
+    minHeight: 92,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  miniStatHeader: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  miniStatDot: { borderRadius: 999, height: 7, width: 7 },
+  miniStatLabel: { fontSize: 12, fontWeight: '900', letterSpacing: 0.4, textTransform: 'uppercase' },
+  miniStatValue: { color: colors.text, fontSize: theme.isCompact ? 22 : 24, fontWeight: '900', lineHeight: theme.isCompact ? 27 : 29 },
+  miniStatHelper: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   section: { gap: 10 },
   breakdownSection: { marginBottom: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
