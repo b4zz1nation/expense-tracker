@@ -147,13 +147,13 @@ function WelcomeStep() {
     <>
       <View style={styles.heroIconWrap}>
         <View style={styles.logoHeroIcon}>
-          <Image accessibilityLabel="Expense Tracker bean logo" source={require('../assets/bean/bean-icon-foreground 1.png')} style={styles.logoImage} />
+          <Image accessibilityLabel="Bean logo" source={require('../assets/bean/bean-icon-foreground 1.png')} style={styles.logoImage} />
         </View>
         <View style={styles.floatingIconPrimary}>
           <Sparkles color={colors.primary} size={20} strokeWidth={2.6} />
         </View>
       </View>
-      <Text style={styles.eyebrow}>Expense Tracker</Text>
+      <Text style={styles.eyebrow}>Bean</Text>
       <Text style={styles.title}>Track spending without the noise.</Text>
       <Text style={styles.subtitle}>A clean, local-first budget companion for daily expenses, calendar ranges, and quick category insights.</Text>
       <View style={styles.featureRow}>

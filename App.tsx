@@ -4,7 +4,7 @@ import { StyleSheet, Text, View } from 'react-native';
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>expense-tracker uses expo-router/entry as its app entry.</Text>
+      <Text>Bean uses expo-router/entry as its app entry.</Text>
       <StatusBar style="auto" />
     </View>
   );
