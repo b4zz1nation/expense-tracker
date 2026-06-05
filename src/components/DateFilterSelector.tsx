@@ -1,7 +1,8 @@
 import { CalendarDays, ChevronDown, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import { useMemo, useState } from 'react';
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { Calendar, type DateData } from 'react-native-calendars';
+import Calendar from 'react-native-calendars/src/calendar';
+import type { DateData } from 'react-native-calendars/src/types';
 import {
   clampRangeToOneYear,
   createDefaultDateFilter,
