@@ -1,5 +1,5 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { X } from 'lucide-react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -15,7 +15,8 @@ import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { CATEGORIES } from '../../src/constants/categories';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
-import { currentMonthString, monthLabel, shiftMonth } from '../../src/lib/dates';
+import { DateFilterSelector } from '../../src/components/DateFilterSelector';
+import { createDefaultDateFilter, dateFilterLabel } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useAppTheme } from '../../src/theme/ThemeContext';
 import type { Expense } from '../../src/types/expense';
@@ -27,12 +28,12 @@ export default function DashboardScreen() {
   const { colors } = theme;
   const insets = useSafeAreaInsets();
   const { setSheetOpen } = useExpenseSheet();
-  const [month, setMonth] = useState(currentMonthString());
+  const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('USD');
-  const { recentExpenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(month);
+  const { recentExpenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const expenseSheetRef = useRef<BottomSheetModal>(null);
   const sheetSnapPoints = useMemo(() => ['68%', '96%'], []);
   const sheetBottomInset = Math.max(insets.bottom, 12);
@@ -108,17 +109,9 @@ export default function DashboardScreen() {
 
   return (
     <Screen>
-      <View style={styles.monthRow}>
-        <Pressable accessibilityLabel="Previous month" accessibilityRole="button" onPress={() => setMonth((current) => shiftMonth(current, -1))} style={styles.monthArrow}>
-          <ChevronLeft color={colors.primary} size={28} strokeWidth={2.6} />
-        </Pressable>
-        <Text style={styles.month}>{monthLabel(month)}</Text>
-        <Pressable accessibilityLabel="Next month" accessibilityRole="button" onPress={() => setMonth((current) => shiftMonth(current, 1))} style={styles.monthArrow}>
-          <ChevronRight color={colors.primary} size={28} strokeWidth={2.6} />
-        </Pressable>
-      </View>
+      <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
 
-      <StatCard label="Total spent this month" value={formatCents(monthlyTotal, displayCurrencyCode)} />
+      <StatCard label="Total spent" value={formatCents(monthlyTotal, displayCurrencyCode)} helper={dateFilterLabel(dateFilter)} />
       <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       {loading ? <ActivityIndicator /> : null}
@@ -132,7 +125,7 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
         {visibleCategorySummaries.length === 0 ? (
-          <EmptyState title="No spending yet this month" message="Add your first expense to see a category breakdown." />
+          <EmptyState title="No spending in this period" message="Add your first expense to see a category breakdown." />
         ) : (
           <FlatList
             data={visibleCategorySummaries}
@@ -251,7 +244,7 @@ export default function DashboardScreen() {
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>All categories</Text>
-                <Text style={styles.modalSubtitle}>Amount and share of the selected month</Text>
+                <Text style={styles.modalSubtitle}>Amount and share of the selected period</Text>
               </View>
               <Pressable onPress={() => setCategoryModalOpen(false)} accessibilityRole="button" style={styles.closeButton}>
                 <X color={colors.textMuted} size={20} strokeWidth={2.6} />
@@ -317,9 +310,6 @@ export default function DashboardScreen() {
 function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   const { colors, spacing } = theme;
   return StyleSheet.create({
-  monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  month: { color: colors.text, fontWeight: '800', fontSize: 18 },
-  monthArrow: { paddingHorizontal: 16, paddingVertical: 4 },
   section: { gap: 10 },
   breakdownSection: { marginBottom: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

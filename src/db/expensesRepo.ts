@@ -4,6 +4,7 @@ import { getPreferredCurrencyCode } from './settingsRepo';
 import { createId } from '../lib/ids';
 import { itemizedValuesToExpenseDrafts } from '../lib/expenseDrafts';
 import type { CategoryBreakdown, Expense, ExpenseFormValues, ExpenseLineItem } from '../types/expense';
+import type { DateRange } from '../lib/dateFilter';
 
 let initPromise: Promise<void> | null = null;
 
@@ -92,6 +93,26 @@ export async function getRecentExpenses(limit = 5): Promise<Expense[]> {
   const rows = await db.getAllAsync<ExpenseRow>(
     'SELECT * FROM expenses WHERE deleted_at IS NULL ORDER BY spent_on DESC, created_at DESC LIMIT ?',
     [limit],
+  );
+  return rows.map(rowToExpense);
+}
+
+export async function listExpensesForRange(range: DateRange): Promise<Expense[]> {
+  await initDb();
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<ExpenseRow>(
+    `SELECT * FROM expenses WHERE deleted_at IS NULL AND spent_on >= ? AND spent_on <= ? ORDER BY spent_on DESC, created_at DESC`,
+    [range.startDate, range.endDate],
+  );
+  return rows.map(rowToExpense);
+}
+
+export async function getRecentExpensesForRange(range: DateRange, limit = 5): Promise<Expense[]> {
+  await initDb();
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<ExpenseRow>(
+    `SELECT * FROM expenses WHERE deleted_at IS NULL AND spent_on >= ? AND spent_on <= ? ORDER BY spent_on DESC, created_at DESC LIMIT ?`,
+    [range.startDate, range.endDate, limit],
   );
   return rows.map(rowToExpense);
 }
@@ -261,6 +282,17 @@ export async function getMonthlyTotal(month: string): Promise<number> {
   return row?.total ?? 0;
 }
 
+export async function getTotalForRange(range: DateRange): Promise<number> {
+  await initDb();
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ total: number }>(
+    `SELECT COALESCE(SUM(amount_cents), 0) as total FROM expenses
+     WHERE deleted_at IS NULL AND spent_on >= ? AND spent_on <= ?`,
+    [range.startDate, range.endDate],
+  );
+  return row?.total ?? 0;
+}
+
 export async function getCategoryBreakdown(month: string): Promise<CategoryBreakdown[]> {
   await initDb();
   const db = await getDatabase();
@@ -271,6 +303,20 @@ export async function getCategoryBreakdown(month: string): Promise<CategoryBreak
      GROUP BY category_id
      ORDER BY amount_cents DESC`,
     [monthStart(month), nextMonthStart(month)],
+  );
+  return rows.map((row) => ({ categoryId: row.category_id, amountCents: row.amount_cents, count: row.count }));
+}
+
+export async function getCategoryBreakdownForRange(range: DateRange): Promise<CategoryBreakdown[]> {
+  await initDb();
+  const db = await getDatabase();
+  const rows = await db.getAllAsync<CategoryBreakdownRow>(
+    `SELECT category_id, COALESCE(SUM(amount_cents), 0) as amount_cents, COUNT(*) as count
+     FROM expenses
+     WHERE deleted_at IS NULL AND spent_on >= ? AND spent_on <= ?
+     GROUP BY category_id
+     ORDER BY amount_cents DESC`,
+    [range.startDate, range.endDate],
   );
   return rows.map((row) => ({ categoryId: row.category_id, amountCents: row.amount_cents, count: row.count }));
 }
