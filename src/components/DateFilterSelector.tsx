@@ -39,6 +39,21 @@ const MODES: Array<{ mode: DateFilterMode; label: string }> = [
   { mode: 'year', label: 'Year' },
 ];
 
+const MONTHS = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+];
+
 export function DateFilterSelector({ value, onChange }: Props) {
   const { theme } = useAppTheme();
   const { colors, spacing } = theme;
@@ -49,7 +64,8 @@ export function DateFilterSelector({ value, onChange }: Props) {
   const [rangeMessage, setRangeMessage] = useState<string | null>(null);
 
   const range = dateFilterToRange(draft);
-  const visibleMonth = draft.mode === 'month' ? `${draft.month}-01` : range.startDate;
+  const selectedMonthYear = draft.mode === 'month' ? Number(draft.month.slice(0, 4)) : Number(range.startDate.slice(0, 4));
+  const visibleMonth = range.startDate;
 
   const markedDates = useMemo(() => buildMarkedDates(draft, colors.primary, colors.primarySoft, colors.onPrimary), [colors.onPrimary, colors.primary, colors.primarySoft, draft]);
   const yearOptions = useMemo(() => yearsAround(new Date(), 6), []);
@@ -89,15 +105,7 @@ export function DateFilterSelector({ value, onChange }: Props) {
     const dateString = day.dateString;
     setRangeMessage(null);
 
-    if (draft.mode === 'month') {
-      setDraft({ mode: 'month', month: dateString.slice(0, 7) });
-      return;
-    }
-
-    if (draft.mode === 'year') {
-      setDraft({ mode: 'year', year: Number(dateString.slice(0, 4)) });
-      return;
-    }
+    if (draft.mode !== 'range') return;
 
     if (!rangeAnchor || (draft.startDate && draft.endDate && rangeAnchor !== draft.startDate)) {
       setRangeAnchor(dateString);
@@ -169,7 +177,30 @@ export function DateFilterSelector({ value, onChange }: Props) {
             <Text style={styles.currentSelection}>{dateFilterLabel(draft)}</Text>
             {rangeMessage ? <Text style={styles.rangeMessage}>{rangeMessage}</Text> : null}
 
-            {draft.mode === 'year' ? (
+            {draft.mode === 'month' ? (
+              <View style={styles.monthPicker}>
+                <View style={styles.pickerHeader}>
+                  <Pressable accessibilityLabel="Previous year" accessibilityRole="button" onPress={() => setDraft({ mode: 'month', month: `${selectedMonthYear - 1}-${draft.month.slice(5, 7)}` })} style={styles.pickerArrow}>
+                    <ChevronLeft color={colors.primary} size={22} strokeWidth={2.6} />
+                  </Pressable>
+                  <Text style={styles.pickerTitle}>{selectedMonthYear}</Text>
+                  <Pressable accessibilityLabel="Next year" accessibilityRole="button" onPress={() => setDraft({ mode: 'month', month: `${selectedMonthYear + 1}-${draft.month.slice(5, 7)}` })} style={styles.pickerArrow}>
+                    <ChevronRight color={colors.primary} size={22} strokeWidth={2.6} />
+                  </Pressable>
+                </View>
+                <View style={styles.monthGrid}>
+                  {MONTHS.map((monthName, index) => {
+                    const monthValue = `${selectedMonthYear}-${String(index + 1).padStart(2, '0')}`;
+                    const selected = draft.mode === 'month' && draft.month === monthValue;
+                    return (
+                      <Pressable key={monthValue} onPress={() => setDraft({ mode: 'month', month: monthValue })} style={[styles.monthButton, selected && styles.monthButtonSelected]}>
+                        <Text style={[styles.monthText, selected && styles.monthTextSelected]}>{monthName.slice(0, 3)}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            ) : draft.mode === 'year' ? (
               <ScrollView contentContainerStyle={styles.yearGrid} showsVerticalScrollIndicator={false} bounces alwaysBounceVertical overScrollMode="always">
                 {yearOptions.map((year) => {
                   const selected = draft.mode === 'year' && draft.year === year;
@@ -183,8 +214,8 @@ export function DateFilterSelector({ value, onChange }: Props) {
             ) : (
               <Calendar
                 current={visibleMonth}
-                maxDate={draft.mode === 'range' && rangeAnchor ? clampRangeToOneYear(rangeAnchor, '9999-12-31').endDate : undefined}
-                markingType={draft.mode === 'range' ? 'period' : undefined}
+                maxDate={rangeAnchor ? clampRangeToOneYear(rangeAnchor, '9999-12-31').endDate : undefined}
+                markingType="period"
                 markedDates={markedDates}
                 onDayPress={handleDayPress}
                 enableSwipeMonths
@@ -290,6 +321,15 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     currentSelection: { color: colors.text, fontSize: 15, fontWeight: '800' },
     rangeMessage: { color: colors.warning, fontSize: 12, fontWeight: '700' },
     calendar: { borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
+    monthPicker: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 12, padding: 12 },
+    pickerHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+    pickerArrow: { alignItems: 'center', borderRadius: 999, height: 34, justifyContent: 'center', width: 34 },
+    pickerTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
+    monthGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    monthButton: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, minWidth: '30%', paddingHorizontal: 12, paddingVertical: 14 },
+    monthButtonSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder },
+    monthText: { color: colors.text, fontSize: 15, fontWeight: '800' },
+    monthTextSelected: { color: colors.primary },
     yearGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 4 },
     yearButton: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, minWidth: '30%', paddingHorizontal: 12, paddingVertical: 12 },
     yearButtonSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder },
