@@ -1,4 +1,5 @@
-import { CheckCircle, ChevronRight, MonitorCog, Moon, Search, Sun, type LucideIcon } from 'lucide-react-native';
+import { CheckCircle, ChevronRight, MonitorCog, Moon, Search, Sun, UserRound, type LucideIcon } from 'lucide-react-native';
+import { router } from 'expo-router';
 import {
   BottomSheetBackdrop,
   BottomSheetFlatList,
@@ -196,6 +197,17 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      <Pressable accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.profileCard}>
+        <View style={styles.profileIcon}>
+          <UserRound color={colors.primary} size={22} strokeWidth={2.5} />
+        </View>
+        <View style={styles.profileText}>
+          <Text style={styles.title}>Profile</Text>
+          <Text style={styles.subtitle}>Edit your name and monthly budget</Text>
+        </View>
+        <ChevronRight color={colors.textMuted} size={22} strokeWidth={2.4} />
+      </Pressable>
+
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Currency</Text>
         <View style={styles.currencySummaryRow}>
@@ -315,6 +327,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   return StyleSheet.create({
     card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card, gap: spacing.md },
     appearanceCard: { gap: spacing.sm, paddingVertical: theme.isCompact ? 12 : 14 },
+    profileCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 12, padding: spacing.card },
+    profileIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 16, height: 46, justifyContent: 'center', width: 46 },
+    profileText: { flex: 1, gap: 2 },
     sectionLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
     themeSegment: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 3, padding: 3 },
     themeSegmentOption: { alignItems: 'center', borderRadius: 11, flex: 1, flexDirection: 'row', gap: 5, justifyContent: 'center', minHeight: 34, paddingHorizontal: 6 },

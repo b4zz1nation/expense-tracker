@@ -1,14 +1,18 @@
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider as NavigationThemeProvider, usePathname, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { getUserProfile } from '../src/db/settingsRepo';
 import { AppThemeProvider, useAppTheme } from '../src/theme/ThemeContext';
 
 function RootStack() {
+  const router = useRouter();
+  const pathname = usePathname();
   const { theme } = useAppTheme();
   const { colors } = theme;
+  const [profileChecked, setProfileChecked] = useState(false);
   const navigationTheme = useMemo(() => {
     const baseTheme = theme.isDark ? DarkTheme : DefaultTheme;
     return {
@@ -25,6 +29,21 @@ function RootStack() {
     };
   }, [colors, theme.isDark]);
 
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const profile = await getUserProfile();
+      if (!alive) return;
+      setProfileChecked(true);
+      if (!profile && pathname !== '/onboarding') {
+        router.replace('/onboarding');
+      }
+    })();
+    return () => { alive = false; };
+  }, [pathname, router]);
+
+  if (!profileChecked) return null;
+
   return (
     <NavigationThemeProvider value={navigationTheme}>
       <BottomSheetModalProvider>
@@ -38,6 +57,8 @@ function RootStack() {
           }}
         >
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+          <Stack.Screen name="profile" options={{ title: 'Profile', presentation: 'modal' }} />
           <Stack.Screen name="expenses/new" options={{ title: 'Add Expense', presentation: 'modal' }} />
           <Stack.Screen name="expenses/[id]" options={{ title: 'Edit Expense', presentation: 'modal' }} />
         </Stack>

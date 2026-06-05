@@ -16,8 +16,9 @@ import { CATEGORIES } from '../../src/constants/categories';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
-import { createDefaultDateFilter, dateFilterLabel } from '../../src/lib/dateFilter';
+import { budgetForDateFilter, createDefaultDateFilter, dateFilterBudgetLabel, dateFilterLabel } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
+import { useProfile } from '../../src/hooks/useProfile';
 import { useAppTheme } from '../../src/theme/ThemeContext';
 import type { Expense } from '../../src/types/expense';
 
@@ -34,6 +35,7 @@ export default function DashboardScreen() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('USD');
   const { recentExpenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
+  const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
   const sheetSnapPoints = useMemo(() => ['68%', '96%'], []);
   const sheetBottomInset = Math.max(insets.bottom, 12);
@@ -41,7 +43,8 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       void refresh();
-    }, [refresh])
+      void refreshProfile();
+    }, [refresh, refreshProfile])
   );
 
   useFocusEffect(useCallback(() => {
@@ -106,12 +109,16 @@ export default function DashboardScreen() {
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0);
   const latestDashboardExpenses = recentExpenses.slice(0, 3);
+  const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
 
   return (
     <Screen>
       <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
 
       <StatCard label="Total spent" value={formatCents(monthlyTotal, displayCurrencyCode)} helper={dateFilterLabel(dateFilter)} />
+      {profile ? (
+        <StatCard label="Budget" value={formatCents(activeBudgetCents, displayCurrencyCode)} helper={dateFilterBudgetLabel(dateFilter)} />
+      ) : null}
       <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       {loading ? <ActivityIndicator /> : null}

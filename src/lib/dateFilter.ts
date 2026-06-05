@@ -48,6 +48,26 @@ export function dateFilterHelper(filter: DateFilter): string {
   return 'Custom range';
 }
 
+
+export function dateFilterBudgetMultiplier(filter: DateFilter): number {
+  if (filter.mode === 'month') return 1;
+  if (filter.mode === 'year') return 12;
+
+  const days = Math.max(1, daysBetween(filter.startDate, filter.endDate) + 1);
+  return Math.min(12, Math.max(1, Math.ceil(days / 30.4375)));
+}
+
+export function budgetForDateFilter(monthlyBudgetCents: number, filter: DateFilter): number {
+  return monthlyBudgetCents * dateFilterBudgetMultiplier(filter);
+}
+
+export function dateFilterBudgetLabel(filter: DateFilter): string {
+  const multiplier = dateFilterBudgetMultiplier(filter);
+  if (filter.mode === 'month') return 'Monthly budget';
+  if (filter.mode === 'year') return 'Yearly budget · monthly × 12';
+  return `${multiplier}-month range budget · monthly × ${multiplier}`;
+}
+
 export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
   if (filter.mode === 'month') {
     return { mode: 'month', month: shiftMonthValue(filter.month, delta) };

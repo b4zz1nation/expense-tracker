@@ -1,6 +1,8 @@
 import {
+  budgetForDateFilter,
   clampRangeToOneYear,
   createDefaultDateFilter,
+  dateFilterBudgetMultiplier,
   dateFilterLabel,
   dateFilterToRange,
   isRangeWithinOneYear,
@@ -29,5 +31,12 @@ describe('date filter utilities', () => {
   it('labels defaults clearly', () => {
     expect(createDefaultDateFilter(new Date(2026, 5, 2))).toEqual({ mode: 'month', month: '2026-06' });
     expect(dateFilterLabel({ mode: 'year', year: 2024 })).toBe('2024');
+  });
+
+  it('scales monthly budget by selected calendar span', () => {
+    expect(dateFilterBudgetMultiplier({ mode: 'month', month: '2026-06' })).toBe(1);
+    expect(dateFilterBudgetMultiplier({ mode: 'range', startDate: '2026-01-01', endDate: '2026-06-30' })).toBe(6);
+    expect(dateFilterBudgetMultiplier({ mode: 'year', year: 2026 })).toBe(12);
+    expect(budgetForDateFilter(100_00, { mode: 'range', startDate: '2026-01-01', endDate: '2026-06-30' })).toBe(600_00);
   });
 });

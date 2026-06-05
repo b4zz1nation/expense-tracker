@@ -8,8 +8,9 @@ import { Screen } from '../../../src/components/Screen';
 import { StatCard } from '../../../src/components/StatCard';
 import { formatCents } from '../../../src/lib/currency';
 import { DateFilterSelector } from '../../../src/components/DateFilterSelector';
-import { createDefaultDateFilter, dateFilterLabel } from '../../../src/lib/dateFilter';
+import { budgetForDateFilter, createDefaultDateFilter, dateFilterBudgetLabel, dateFilterLabel } from '../../../src/lib/dateFilter';
 import { useExpenses } from '../../../src/hooks/useExpenses';
+import { useProfile } from '../../../src/hooks/useProfile';
 import { getPreferredCurrencyCode } from '../../../src/db/settingsRepo';
 import { useAppTheme } from '../../../src/theme/ThemeContext';
 
@@ -20,10 +21,14 @@ export default function ExpensesScreen() {
   const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('USD');
   const { expenses, loading, error, refresh, monthlyTotal } = useExpenses(dateFilter);
+  const { profile, refreshProfile } = useProfile();
 
   useFocusEffect(useCallback(() => {
     void refresh();
-  }, [refresh]));
+    void refreshProfile();
+  }, [refresh, refreshProfile]));
+
+  const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
 
   useFocusEffect(useCallback(() => {
     void (async () => {
@@ -35,6 +40,7 @@ export default function ExpensesScreen() {
     <Screen>
       <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
       <StatCard label="Total" value={formatCents(monthlyTotal, displayCurrencyCode)} helper={dateFilterLabel(dateFilter)} />
+      {profile ? <StatCard label="Budget" value={formatCents(activeBudgetCents, displayCurrencyCode)} helper={dateFilterBudgetLabel(dateFilter)} /> : null}
       <View style={styles.addButtonRow}>
         <AppButton onPress={() => router.push('/expenses/new')} style={styles.addButton} variant="secondary">
           Add Expense
