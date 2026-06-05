@@ -1,7 +1,11 @@
 import { StyleSheet, Text, View } from 'react-native';
+import { useAppTheme } from '../theme/ThemeContext';
 import { AppButton } from './AppButton';
 
 export function EmptyState({ title, message, actionLabel, onAction }: { title: string; message: string; actionLabel?: string; onAction?: () => void }) {
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>{title}</Text>
@@ -11,8 +15,19 @@ export function EmptyState({ title, message, actionLabel, onAction }: { title: s
   );
 }
 
-const styles = StyleSheet.create({
-  container: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 24, gap: 12, alignItems: 'center' },
-  title: { color: '#0F172A', fontSize: 18, fontWeight: '800' },
-  message: { color: '#64748B', textAlign: 'center', lineHeight: 20 },
-});
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    container: {
+      backgroundColor: colors.surface,
+      borderColor: colors.border,
+      borderRadius: 20,
+      borderWidth: StyleSheet.hairlineWidth,
+      padding: theme.isCompact ? spacing.lg : 24,
+      gap: spacing.md,
+      alignItems: 'center',
+    },
+    title: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    message: { color: colors.textMuted, textAlign: 'center', lineHeight: 20 },
+  });
+}

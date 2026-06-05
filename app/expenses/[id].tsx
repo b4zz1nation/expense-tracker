@@ -1,15 +1,18 @@
 import { useLocalSearchParams, useRouter, useNavigation } from 'expo-router';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text } from 'react-native';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-native';
 import { ExpenseForm, type ExpenseFormHandle } from '../../src/components/ExpenseForm';
 import { Screen } from '../../src/components/Screen';
 import { deleteExpense, getExpense, updateExpense } from '../../src/db/expensesRepo';
+import { useAppTheme } from '../../src/theme/ThemeContext';
 import type { Expense, ExpenseFormValues } from '../../src/types/expense';
 
 export default function EditExpenseScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const navigation = useNavigation();
+  const { theme } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
   const formRef = useRef<ExpenseFormHandle>(null);
   const [expense, setExpense] = useState<Expense | null>(null);
   const [loading, setLoading] = useState(true);
@@ -53,27 +56,20 @@ export default function EditExpenseScreen() {
           onPress={() => formRef.current?.submit()}
           accessibilityRole="button"
           accessibilityLabel="Save changes"
-          style={({ pressed }) => [
-            {
-              paddingHorizontal: 10,
-              paddingVertical: 6,
-              borderRadius: 999,
-              backgroundColor: '#DBEAFE',
-            },
-            pressed ? { opacity: 0.8 } : null,
-          ]}
+          style={({ pressed }) => [styles.headerSaveButton, pressed ? styles.pressed : null]}
         >
-          <Text style={{ color: '#1D4ED8', fontWeight: '800' }}>Save</Text>
+          <Text style={styles.headerSaveText}>Save</Text>
         </Pressable>
       ),
     });
-  }, [router]);
+  }, [navigation, styles]);
+
   if (loading) {
     return <Screen><ActivityIndicator /></Screen>;
   }
 
   if (error || !expense) {
-    return <Screen><Text>{error ?? 'Expense not found.'}</Text></Screen>;
+    return <Screen><Text style={styles.errorText}>{error ?? 'Expense not found.'}</Text></Screen>;
   }
 
   return (
@@ -81,4 +77,19 @@ export default function EditExpenseScreen() {
       <ExpenseForm ref={formRef} initialExpense={expense} submitLabel="Save Changes" onSubmit={submit} onDelete={remove} showSubmitButton={false} metaFieldsLayout="row" currencyCode={expense.currency} />
     </Screen>
   );
+}
+
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
+  const { colors } = theme;
+  return StyleSheet.create({
+    headerSaveButton: {
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 999,
+      backgroundColor: colors.primarySoft,
+    },
+    headerSaveText: { color: colors.primary, fontWeight: '800' },
+    errorText: { color: colors.expense, fontWeight: '700' },
+    pressed: { opacity: 0.8 },
+  });
 }

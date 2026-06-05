@@ -1,11 +1,13 @@
 import { getDatabase } from './database';
 import { migrateDb } from './migrations';
 import { getDeviceDefaultCurrencyCode } from '../lib/currencies';
+import { isThemeMode, type ThemeMode } from '../theme/theme';
 
 let initPromise: Promise<void> | null = null;
 
 const SETTINGS_KEYS = {
   preferredCurrency: 'preferred_currency',
+  themeMode: 'theme_mode',
 } as const;
 
 async function initDb(): Promise<void> {
@@ -55,4 +57,13 @@ export async function setPreferredCurrencyCode(code: string): Promise<void> {
 
 export async function resetPreferredCurrencyCode(): Promise<void> {
   await clearSetting(SETTINGS_KEYS.preferredCurrency);
+}
+
+export async function getThemeModeSetting(): Promise<ThemeMode | null> {
+  const stored = await getSetting(SETTINGS_KEYS.themeMode);
+  return isThemeMode(stored) ? stored : null;
+}
+
+export async function setThemeModeSetting(mode: ThemeMode): Promise<void> {
+  await setSetting(SETTINGS_KEYS.themeMode, mode);
 }

@@ -2,6 +2,7 @@ import type { PropsWithChildren } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppTheme } from '../theme/ThemeContext';
 
 type ScreenProps = PropsWithChildren<{
   scroll?: boolean;
@@ -9,6 +10,8 @@ type ScreenProps = PropsWithChildren<{
 
 export function Screen({ children, scroll = true }: ScreenProps) {
   const insets = useSafeAreaInsets();
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
   const containerStyle = [styles.container, { paddingBottom: 32 + insets.bottom }];
 
   if (!scroll) {
@@ -34,12 +37,15 @@ export function Screen({ children, scroll = true }: ScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: '#F8FAFC' },
-  container: {
-    flexGrow: 1,
-    padding: 20,
-    gap: 16,
-    backgroundColor: '#F8FAFC',
-  },
-});
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    scroll: { flex: 1, backgroundColor: colors.background },
+    container: {
+      flexGrow: 1,
+      padding: spacing.screen,
+      gap: spacing.lg,
+      backgroundColor: colors.background,
+    },
+  });
+}

@@ -6,11 +6,13 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "automatic",
     "ios": {
+      "bundleIdentifier": "com.b4zz1nation.expensetracker",
       "supportsTablet": true
     },
     "android": {
+      "package": "com.b4zz1nation.expensetracker",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -26,7 +28,14 @@
     "plugins": [
       "expo-router",
       "expo-sqlite",
-      "expo-localization"
-    ]
+      "expo-localization",
+      "expo-system-ui"
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "da084304-947b-4d74-a475-99148c324f0c"
+      }
+    }
   }
 }

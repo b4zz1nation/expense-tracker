@@ -1,4 +1,5 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -9,16 +10,21 @@ import { EmptyState } from '../../src/components/EmptyState';
 import { ExpenseItem } from '../../src/components/ExpenseItem';
 import { Screen } from '../../src/components/Screen';
 import { StatCard } from '../../src/components/StatCard';
+import { CategoryIcon } from '../../src/components/CategoryIcon';
 import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { CATEGORIES } from '../../src/constants/categories';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
 import { currentMonthString, monthLabel, shiftMonth } from '../../src/lib/dates';
 import { useExpenses } from '../../src/hooks/useExpenses';
+import { useAppTheme } from '../../src/theme/ThemeContext';
 import type { Expense } from '../../src/types/expense';
 
 export default function DashboardScreen() {
   const router = useRouter();
+  const { theme } = useAppTheme();
+  const styles = createStyles(theme);
+  const { colors } = theme;
   const insets = useSafeAreaInsets();
   const { setSheetOpen } = useExpenseSheet();
   const [month, setMonth] = useState(currentMonthString());
@@ -98,16 +104,21 @@ export default function DashboardScreen() {
   }, [categoryBreakdown, monthlyTotal]);
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0);
+  const latestDashboardExpenses = recentExpenses.slice(0, 3);
 
   return (
     <Screen>
       <View style={styles.monthRow}>
-        <Text style={styles.monthArrow} onPress={() => setMonth((current) => shiftMonth(current, -1))}>‹</Text>
+        <Pressable accessibilityLabel="Previous month" accessibilityRole="button" onPress={() => setMonth((current) => shiftMonth(current, -1))} style={styles.monthArrow}>
+          <ChevronLeft color={colors.primary} size={28} strokeWidth={2.6} />
+        </Pressable>
         <Text style={styles.month}>{monthLabel(month)}</Text>
-        <Text style={styles.monthArrow} onPress={() => setMonth((current) => shiftMonth(current, 1))}>›</Text>
+        <Pressable accessibilityLabel="Next month" accessibilityRole="button" onPress={() => setMonth((current) => shiftMonth(current, 1))} style={styles.monthArrow}>
+          <ChevronRight color={colors.primary} size={28} strokeWidth={2.6} />
+        </Pressable>
       </View>
 
-      <StatCard label="Total spent this month" value={formatCents(monthlyTotal, displayCurrencyCode)} helper="Local-first, stored on this device" />
+      <StatCard label="Total spent this month" value={formatCents(monthlyTotal, displayCurrencyCode)} />
       <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       {loading ? <ActivityIndicator /> : null}
@@ -131,13 +142,7 @@ export default function DashboardScreen() {
             contentContainerStyle={styles.breakdownRail}
             renderItem={({ item }) => (
               <View
-                style={[
-                  styles.breakdownCard,
-                  styles.breakdownGaugeCard,
-                  {
-                    shadowColor: '#0F172A',
-                  },
-                ]}
+                style={[styles.breakdownCard, styles.breakdownGaugeCard]}
               >
                 <AnimatedCircularProgress
                   size={96}
@@ -151,7 +156,7 @@ export default function DashboardScreen() {
                   arcSweepAngle={180}
                   lineCap="round"
                   tintColor={item.color}
-                  backgroundColor="#E2E8F0"
+                  backgroundColor={colors.chartTrack}
                   style={styles.breakdownGauge}
                 >
                   {(fill: number) => (
@@ -172,10 +177,10 @@ export default function DashboardScreen() {
           <Text style={styles.sectionTitle}>Recent expenses</Text>
           <Text style={styles.link} onPress={() => router.push('/expenses')}>View all</Text>
         </View>
-        {recentExpenses.length === 0 ? (
+        {latestDashboardExpenses.length === 0 ? (
           <EmptyState title="No expenses yet" message="Add your first expense to start tracking." actionLabel="Add Expense" onAction={() => router.push('/expenses/new')} />
         ) : (
-          recentExpenses.map((expense) => (
+          latestDashboardExpenses.map((expense) => (
             <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} onPress={() => openExpenseSheet(expense)} />
           ))
         )}
@@ -211,7 +216,7 @@ export default function DashboardScreen() {
                 <Text style={styles.sheetTitle}>{selectedExpense.note || 'Expense'}</Text>
               </View>
               <Pressable onPress={closeExpenseSheet} accessibilityRole="button" accessibilityLabel="Close expense sheet" style={styles.closeButton}>
-                <Text style={styles.closeText}>✕</Text>
+                <X color={colors.textMuted} size={20} strokeWidth={2.6} />
               </Pressable>
             </View>
 
@@ -240,7 +245,7 @@ export default function DashboardScreen() {
                 <Text style={styles.modalSubtitle}>Amount and share of the selected month</Text>
               </View>
               <Pressable onPress={() => setCategoryModalOpen(false)} accessibilityRole="button" style={styles.closeButton}>
-                <Text style={styles.closeText}>✕</Text>
+                <X color={colors.textMuted} size={20} strokeWidth={2.6} />
               </Pressable>
             </View>
 
@@ -260,7 +265,7 @@ export default function DashboardScreen() {
                       arcSweepAngle={360}
                       lineCap="round"
                       tintColor={item.color}
-                      backgroundColor="#E2E8F0"
+                      backgroundColor={colors.chartTrack}
                       style={styles.modalGauge}
                     >
                       {(fill: number) => (
@@ -270,7 +275,10 @@ export default function DashboardScreen() {
                       )}
                     </AnimatedCircularProgress>
                     <View style={styles.breakdownTextBlock}>
-                      <Text style={styles.breakdownLabel}>{item.emoji} {item.name}</Text>
+                      <View style={styles.breakdownLabelRow}>
+                        <CategoryIcon categoryId={item.id} size={22} />
+                        <Text style={styles.breakdownLabel}>{item.name}</Text>
+                      </View>
                       <Text style={styles.breakdownMeta}>{item.count} expense{item.count === 1 ? '' : 's'}</Text>
                     </View>
                   </View>
@@ -289,19 +297,21 @@ export default function DashboardScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
   monthRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  month: { color: '#0F172A', fontWeight: '800', fontSize: 18 },
-  monthArrow: { color: '#2563EB', fontSize: 34, fontWeight: '700', paddingHorizontal: 16 },
+  month: { color: colors.text, fontWeight: '800', fontSize: 18 },
+  monthArrow: { paddingHorizontal: 16, paddingVertical: 4 },
   section: { gap: 10 },
   breakdownSection: { marginBottom: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  sectionTitle: { color: '#0F172A', fontSize: 18, fontWeight: '800' },
-  sectionAction: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: '#E0E7FF' },
-  sectionActionText: { color: '#1D4ED8', fontWeight: '800' },
-  link: { color: '#2563EB', fontWeight: '800' },
-  error: { color: '#DC2626', fontWeight: '700' },
-  breakdownRow: { backgroundColor: '#FFFFFF', borderRadius: 16, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
+  sectionAction: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primarySoft },
+  sectionActionText: { color: colors.primaryPressed, fontWeight: '800' },
+  link: { color: colors.primary, fontWeight: '800' },
+  error: { color: colors.expense, fontWeight: '700' },
+  breakdownRow: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, padding: 14, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   breakdownLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   breakdownPercentCircle: {
     width: 44,
@@ -309,29 +319,23 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 5,
   },
   breakdownPercentText: { fontSize: 12, fontWeight: '900' },
   breakdownTextBlock: { flex: 1, gap: 2 },
-  breakdownLabel: { color: '#0F172A', fontWeight: '700' },
-  breakdownMeta: { color: '#64748B', fontSize: 12, fontWeight: '600' },
-  breakdownAmount: { color: '#0F172A', fontWeight: '800' },
+  breakdownLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  breakdownLabel: { color: colors.text, fontWeight: '700' },
+  breakdownMeta: { color: colors.textMuted, fontSize: 12, fontWeight: '600' },
+  breakdownAmount: { color: colors.text, fontWeight: '800' },
   breakdownRail: { gap: 12, paddingRight: 4, paddingBottom: 8 },
   breakdownCard: {
     width: 170,
     borderRadius: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderWidth: StyleSheet.hairlineWidth,
     padding: 16,
     gap: 12,
     alignItems: 'center',
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
   },
   breakdownGaugeCard: {
     justifyContent: 'center',
@@ -351,40 +355,37 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   breakdownGaugeLabel: {
-    color: '#0F172A',
+    color: colors.text,
     fontWeight: '800',
     fontSize: 13,
     lineHeight: 16,
     textAlign: 'center',
   },
   breakdownCardTop: { gap: 10 },
-  breakdownName: { color: '#0F172A', fontWeight: '800', fontSize: 14, lineHeight: 18 },
+  breakdownName: { color: colors.text, fontWeight: '800', fontSize: 14, lineHeight: 18 },
 
-  modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.48)', justifyContent: 'center', paddingHorizontal: 16 },
-  modalCard: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 18, gap: 14, maxHeight: '82%' },
+  modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 16 },
+  modalCard: { backgroundColor: colors.surface, borderRadius: 24, padding: 18, gap: 14, maxHeight: '82%' },
   modalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   modalHeaderText: { flex: 1, gap: 2 },
-  modalTitle: { color: '#0F172A', fontSize: 20, fontWeight: '900' },
-  modalSubtitle: { color: '#64748B', fontSize: 13, fontWeight: '600' },
-  modalList: { gap: 10 },
-  modalListContent: { gap: 10, paddingBottom: 2 },
-  modalRow: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, shadowColor: '#0F172A', shadowOpacity: 0.06, shadowRadius: 12, shadowOffset: { width: 0, height: 6 }, elevation: 2 },
+  modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
+  modalSubtitle: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
+  modalList: { gap: 10, marginHorizontal: -8 },
+  modalListContent: { gap: 10, paddingHorizontal: 8, paddingBottom: 10 },
+  modalRow: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
   modalLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   modalGauge: { alignSelf: 'center' },
   modalGaugeCenter: { alignItems: 'center', justifyContent: 'center' },
   modalGaugePercent: { fontSize: 14, fontWeight: '900', lineHeight: 16 },
   modalAmountBlock: { alignItems: 'flex-end', gap: 2 },
-  modalAmount: { color: '#0F172A', fontWeight: '900' },
-  modalPercent: { color: '#64748B', fontSize: 12, fontWeight: '700' },
+  modalAmount: { color: colors.text, fontWeight: '900' },
+  modalPercent: { color: colors.textMuted, fontSize: 12, fontWeight: '700' },
   sheetBackground: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderTopWidth: StyleSheet.hairlineWidth,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.18,
-    shadowRadius: 24,
-    shadowOffset: { width: 0, height: -8 },
-    elevation: 24,
   },
   sheetHandle: {
     paddingTop: 8,
@@ -394,7 +395,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 4,
     borderRadius: 999,
-    backgroundColor: '#CBD5E1',
+    backgroundColor: colors.divider,
   },
   sheetContent: {
     gap: 12,
@@ -403,15 +404,16 @@ const styles = StyleSheet.create({
   },
   sheetHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   sheetHeaderText: { flex: 1 },
-  sheetTotalLabel: { color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
-  sheetTotalAmount: { color: '#0F172A', fontSize: 26, fontWeight: '900', marginTop: 2 },
-  sheetTitle: { color: '#0F172A', fontSize: 18, fontWeight: '900', marginTop: 6 },
+  sheetTotalLabel: { color: colors.textMuted, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  sheetTotalAmount: { color: colors.text, fontSize: 26, fontWeight: '900', marginTop: 2 },
+  sheetTitle: { color: colors.text, fontSize: 18, fontWeight: '900', marginTop: 6 },
   closeButton: { paddingHorizontal: 8, paddingVertical: 2 },
-  closeText: { color: '#64748B', fontSize: 20, fontWeight: '900' },
+  closeText: { color: colors.textMuted, fontSize: 20, fontWeight: '900' },
   sheetList: { gap: 10 },
-  sheetItem: { backgroundColor: '#F8FAFC', borderRadius: 16, paddingHorizontal: 12, paddingVertical: 14 },
+  sheetItem: { backgroundColor: colors.background, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 14 },
   sheetItemRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
-  sheetItemLabel: { color: '#0F172A', fontWeight: '700', flex: 1 },
-  sheetItemAmount: { color: '#0F172A', fontWeight: '800' },
-  sheetError: { color: '#DC2626', fontWeight: '700' },
-});
+  sheetItemLabel: { color: colors.text, fontWeight: '700', flex: 1 },
+  sheetItemAmount: { color: colors.text, fontWeight: '800' },
+  sheetError: { color: colors.expense, fontWeight: '700' },
+  });
+}

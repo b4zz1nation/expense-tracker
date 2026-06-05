@@ -1,4 +1,4 @@
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { CheckCircle, ChevronRight, MonitorCog, Moon, Search, Sun, type LucideIcon } from 'lucide-react-native';
 import {
   BottomSheetBackdrop,
   BottomSheetFlatList,
@@ -21,14 +21,26 @@ import {
   resetPreferredCurrencyCode,
   setPreferredCurrencyCode,
 } from '../../src/db/settingsRepo';
+import { useAppTheme } from '../../src/theme/ThemeContext';
+import type { ThemeMode } from '../../src/theme/theme';
 
 type CurrencyOption = ReturnType<typeof getCurrencyOptions>[number];
 
+const THEME_OPTIONS: Array<{ mode: ThemeMode; title: string; Icon: LucideIcon }> = [
+  { mode: 'system', title: 'System', Icon: MonitorCog },
+  { mode: 'light', title: 'Light', Icon: Sun },
+  { mode: 'dark', title: 'Dark', Icon: Moon },
+];
+
 export default function SettingsScreen() {
   const currencySheetRef = useRef<BottomSheetModal>(null);
+  const { theme, mode, setMode } = useAppTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const { colors } = theme;
   const [storedCurrencyCode, setStoredCurrencyCode] = useState<string | null>(null);
   const [loadingCurrency, setLoadingCurrency] = useState(true);
   const [savingCurrency, setSavingCurrency] = useState(false);
+  const [savingThemeMode, setSavingThemeMode] = useState<ThemeMode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>(getDeviceDefaultCurrencyCode());
 
@@ -78,6 +90,17 @@ export default function SettingsScreen() {
       },
     ]);
   };
+
+  const chooseThemeMode = useCallback(async (nextMode: ThemeMode) => {
+    setSavingThemeMode(nextMode);
+    try {
+      await setMode(nextMode);
+    } catch (error) {
+      Alert.alert('Could not save appearance', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setSavingThemeMode(null);
+    }
+  }, [setMode]);
 
   const openCurrencyPicker = useCallback(() => {
     setSearchQuery('');
@@ -135,17 +158,44 @@ export default function SettingsScreen() {
             <Text style={styles.currencyRowTitle} numberOfLines={1}>{item.code} · {item.name}</Text>
           </View>
         </View>
-        <MaterialCommunityIcons
-          color={selected ? '#2563EB' : '#94A3B8'}
-          name={selected ? 'check-circle' : 'chevron-right'}
-          size={22}
-        />
+        {selected ? (
+          <CheckCircle color={colors.primary} size={22} strokeWidth={2.4} />
+        ) : (
+          <ChevronRight color={colors.textMuted} size={22} strokeWidth={2.4} />
+        )}
       </Pressable>
     );
-  }, [chooseCurrency, selectedCurrencyCode]);
+  }, [chooseCurrency, colors.primary, colors.textMuted, selectedCurrencyCode, styles]);
 
   return (
     <Screen>
+      <View style={[styles.card, styles.appearanceCard]}>
+        <Text style={styles.sectionLabel}>Appearance</Text>
+        <View style={styles.themeSegment}>
+          {THEME_OPTIONS.map((option) => {
+            const selected = mode === option.mode;
+            return (
+              <Pressable
+                key={option.mode}
+                accessibilityLabel={`Use ${option.title} appearance`}
+                accessibilityRole="button"
+                accessibilityState={{ selected, busy: savingThemeMode === option.mode }}
+                disabled={savingThemeMode !== null}
+                onPress={() => { void chooseThemeMode(option.mode); }}
+                style={({ pressed }) => [
+                  styles.themeSegmentOption,
+                  selected && styles.themeSegmentOptionSelected,
+                  pressed && styles.currencyRowPressed,
+                ]}
+              >
+                <option.Icon color={selected ? colors.primary : colors.textMuted} size={16} strokeWidth={2.4} />
+                <Text style={[styles.themeSegmentText, selected && styles.themeSegmentTextSelected]}>{option.title}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+
       <View style={styles.card}>
         <Text style={styles.sectionLabel}>Currency</Text>
         <View style={styles.currencySummaryRow}>
@@ -187,10 +237,12 @@ export default function SettingsScreen() {
             {...props}
             appearsOnIndex={0}
             disappearsOnIndex={-1}
-            opacity={0.42}
+            opacity={theme.isDark ? 0.62 : 0.42}
             pressBehavior="close"
           />
         )}
+        backgroundStyle={styles.sheetBackground}
+        handleIndicatorStyle={styles.sheetHandleIndicator}
         enableContentPanningGesture={false}
         enableHandlePanningGesture={false}
         enablePanDownToClose
@@ -219,13 +271,13 @@ export default function SettingsScreen() {
               </Text>
 
               <View style={styles.searchBox}>
-                <MaterialCommunityIcons color="#94A3B8" name="magnify" size={20} />
+                <Search color={colors.textMuted} size={20} strokeWidth={2.4} />
                 <BottomSheetTextInput
                   autoCapitalize="characters"
                   autoCorrect={false}
                   placeholder="Search by code, name, or symbol"
-                  placeholderTextColor="#94A3B8"
-                  selectionColor="#2563EB"
+                  placeholderTextColor={colors.textMuted}
+                  selectionColor={colors.primary}
                   style={styles.searchInput}
                   value={searchQuery}
                   onChangeText={setSearchQuery}
@@ -255,67 +307,51 @@ export default function SettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  card: { backgroundColor: '#FFFFFF', borderRadius: 20, padding: 18, gap: 10 },
-  sectionLabel: { color: '#64748B', fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
-  currencySummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-  currencySummaryBadge: {
-    alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    borderRadius: 18,
-    height: 56,
-    justifyContent: 'center',
-    width: 56,
-  },
-  currencySummarySymbol: { color: '#2563EB', fontSize: 24, fontWeight: '800' },
-  currencySummaryText: { flex: 1, gap: 3 },
-  title: { color: '#0F172A', fontSize: 18, fontWeight: '800' },
-  subtitle: { color: '#334155', fontSize: 15, fontWeight: '600' },
-  helperText: { color: '#64748B', lineHeight: 20 },
-  text: { color: '#64748B', lineHeight: 20 },
-  resetButton: { alignSelf: 'flex-start' },
-  resetButtonText: { color: '#2563EB', fontWeight: '700' },
-  sheetHeader: { backgroundColor: '#F8FAFC', gap: 12, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14 },
-  sheetTitle: { color: '#0F172A', fontSize: 22, fontWeight: '800' },
-  sheetSubtitle: { color: '#64748B', lineHeight: 20 },
-  searchBox: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderRadius: 16,
-    borderWidth: 1,
-    flexDirection: 'row',
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-  searchInput: { color: '#0F172A', flex: 1, fontSize: 16, padding: 0 },
-  sheetActions: { flexDirection: 'row', justifyContent: 'flex-end' },
-  sheetActionButton: { paddingHorizontal: 2, paddingVertical: 2 },
-  sheetActionButtonText: { color: '#2563EB', fontWeight: '700' },
-  listContent: { paddingHorizontal: 20, paddingBottom: 28, gap: 10 },
-  currencyList: { flex: 1 },
-  currencyRow: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderRadius: 18,
-    borderWidth: 1,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  currencyRowSelected: { backgroundColor: '#EFF6FF', borderColor: '#BFDBFE' },
-  currencyRowPressed: { opacity: 0.9, transform: [{ scale: 0.995 }] },
-  currencyRowLeft: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10 },
-  currencyFlag: { fontSize: 18, lineHeight: 18 },
-  currencyRowText: { flex: 1, gap: 1 },
-  currencyRowTitle: { color: '#0F172A', fontSize: 15, fontWeight: '700' },
-  emptyState: { alignItems: 'center', paddingVertical: 28 },
-  emptyStateTitle: { color: '#0F172A', fontSize: 16, fontWeight: '700' },
-  emptyStateText: { color: '#64748B', marginTop: 4 },
-  savingOverlay: { bottom: 20, left: 0, position: 'absolute', right: 0, alignItems: 'center' },
-  savingPill: { backgroundColor: '#0F172A', borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  savingPillText: { color: '#FFFFFF', fontWeight: '700' },
-});
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
+  const { colors, spacing } = theme;
+  return StyleSheet.create({
+    card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card, gap: spacing.md },
+    appearanceCard: { gap: spacing.sm, paddingVertical: theme.isCompact ? 12 : 14 },
+    sectionLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
+    themeSegment: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 3, padding: 3 },
+    themeSegmentOption: { alignItems: 'center', borderRadius: 11, flex: 1, flexDirection: 'row', gap: 5, justifyContent: 'center', minHeight: 34, paddingHorizontal: 6 },
+    themeSegmentOptionSelected: { backgroundColor: colors.primarySoft },
+    themeSegmentText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+    themeSegmentTextSelected: { color: colors.primary },
+    currencySummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
+    currencySummaryBadge: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 18, height: 56, justifyContent: 'center', width: 56 },
+    currencySummarySymbol: { color: colors.primary, fontSize: 24, fontWeight: '800' },
+    currencySummaryText: { flex: 1, gap: 3 },
+    title: { color: colors.text, fontSize: 18, fontWeight: '800' },
+    subtitle: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
+    helperText: { color: colors.textMuted, lineHeight: 20 },
+    text: { color: colors.textMuted, lineHeight: 20 },
+    resetButton: { alignSelf: 'flex-start' },
+    resetButtonText: { color: colors.primary, fontWeight: '700' },
+    sheetBackground: { backgroundColor: colors.sheet },
+    sheetHandleIndicator: { backgroundColor: colors.sheetHandle },
+    sheetHeader: { backgroundColor: colors.sheet, gap: spacing.md, paddingHorizontal: spacing.screen, paddingTop: 8, paddingBottom: 14 },
+    sheetTitle: { color: colors.text, fontSize: 22, fontWeight: '800' },
+    sheetSubtitle: { color: colors.textMuted, lineHeight: 20 },
+    searchBox: { alignItems: 'center', backgroundColor: colors.input, borderColor: colors.border, borderRadius: 16, borderWidth: 1, flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingVertical: 12 },
+    searchInput: { color: colors.text, flex: 1, fontSize: 16, padding: 0 },
+    sheetActions: { flexDirection: 'row', justifyContent: 'flex-end' },
+    sheetActionButton: { paddingHorizontal: 2, paddingVertical: 2 },
+    sheetActionButtonText: { color: colors.primary, fontWeight: '700' },
+    listContent: { backgroundColor: colors.sheet, paddingHorizontal: spacing.screen, paddingBottom: 28, gap: 10 },
+    currencyList: { backgroundColor: colors.sheet, flex: 1 },
+    currencyRow: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 8 },
+    currencyRowSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder },
+    currencyRowPressed: { opacity: 0.9, transform: [{ scale: 0.995 }] },
+    currencyRowLeft: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10 },
+    currencyFlag: { fontSize: 18, lineHeight: 18 },
+    currencyRowText: { flex: 1, gap: 1 },
+    currencyRowTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+    emptyState: { alignItems: 'center', paddingVertical: 28 },
+    emptyStateTitle: { color: colors.text, fontSize: 16, fontWeight: '700' },
+    emptyStateText: { color: colors.textMuted, marginTop: 4 },
+    savingOverlay: { bottom: 20, left: 0, position: 'absolute', right: 0, alignItems: 'center' },
+    savingPill: { backgroundColor: colors.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
+    savingPillText: { color: colors.background, fontWeight: '700' },
+  });
+}

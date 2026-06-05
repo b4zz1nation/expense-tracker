@@ -1,33 +1,35 @@
 import { Tabs } from 'expo-router';
-import { StyleSheet, Text, type ColorValue } from 'react-native';
+import { Home, ReceiptText, Settings, type LucideIcon } from 'lucide-react-native';
+import { StyleSheet, type ColorValue } from 'react-native';
 import { ExpenseSheetProvider, useExpenseSheet } from '../../src/context/ExpenseSheetContext';
+import { useAppTheme } from '../../src/theme/ThemeContext';
 
-function TabIcon({ icon, color }: { icon: string; color: ColorValue }) {
-  return <Text style={[styles.tabIcon, { color }]}>{icon}</Text>;
+function TabIcon({ Icon, color }: { Icon: LucideIcon; color: ColorValue }) {
+  return <Icon color={color as string} size={22} strokeWidth={2.25} />;
 }
 
 function TabsNavigator() {
   const { sheetOpen } = useExpenseSheet();
+  const { theme } = useAppTheme();
+  const { colors } = theme;
 
   return (
     <Tabs
       screenOptions={{
-        headerStyle: { backgroundColor: '#F8FAFC' },
-        headerTintColor: '#0F172A',
+        headerStyle: { backgroundColor: colors.background },
+        headerTintColor: colors.text,
         headerTitleStyle: { fontWeight: '700' },
-        sceneStyle: { backgroundColor: '#F8FAFC' },
-        tabBarActiveTintColor: '#2563EB',
-        tabBarInactiveTintColor: '#64748B',
+        sceneStyle: { backgroundColor: colors.background },
+        tabBarActiveTintColor: colors.primary,
+        tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
         tabBarStyle: {
-          height: 70,
-          paddingTop: 8,
-          paddingBottom: 10,
-          backgroundColor: '#FFFFFF',
-          borderTopWidth: 0,
-          borderTopColor: 'transparent',
-          shadowOpacity: 0,
-          elevation: 0,
+          height: theme.isCompact ? 64 : 70,
+          paddingTop: theme.isCompact ? 6 : 8,
+          paddingBottom: theme.isCompact ? 8 : 10,
+          backgroundColor: colors.tabBar,
+          borderTopWidth: StyleSheet.hairlineWidth,
+          borderTopColor: colors.border,
           display: sheetOpen ? 'none' : 'flex',
         },
       }}
@@ -37,7 +39,7 @@ function TabsNavigator() {
         options={{
           title: 'Dashboard',
           tabBarLabel: 'Home',
-          tabBarIcon: ({ color }) => <TabIcon icon="🏠" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon Icon={Home} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -45,7 +47,7 @@ function TabsNavigator() {
         options={{
           title: 'Expenses',
           tabBarLabel: 'Expenses',
-          tabBarIcon: ({ color }) => <TabIcon icon="🧾" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon Icon={ReceiptText} color={color} />,
         }}
       />
       <Tabs.Screen
@@ -53,7 +55,7 @@ function TabsNavigator() {
         options={{
           title: 'Settings',
           tabBarLabel: 'Settings',
-          tabBarIcon: ({ color }) => <TabIcon icon="⚙️" color={color} />,
+          tabBarIcon: ({ color }) => <TabIcon Icon={Settings} color={color} />,
         }}
       />
     </Tabs>
@@ -68,6 +70,4 @@ export default function TabsLayout() {
   );
 }
 
-const styles = StyleSheet.create({
-  tabIcon: { fontSize: 20 },
-});
+const styles = StyleSheet.create({});
