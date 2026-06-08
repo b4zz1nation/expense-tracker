@@ -1,10 +1,12 @@
 import { currentMonthString, formatDateLabel, monthLabel, todayDateString } from './dates';
 
-export type DateFilterMode = 'month' | 'range' | 'year';
+export type DateFilterMode = 'day' | 'month' | 'range90' | 'rangeYear' | 'year';
 
 export type DateFilter =
+  | { mode: 'day'; date: string }
   | { mode: 'month'; month: string }
-  | { mode: 'range'; startDate: string; endDate: string }
+  | { mode: 'range90'; startDate: string }
+  | { mode: 'rangeYear'; startDate: string }
   | { mode: 'year'; year: number };
 
 export type DateRange = {
@@ -13,10 +15,14 @@ export type DateRange = {
 };
 
 export function createDefaultDateFilter(date = new Date()): DateFilter {
-  return { mode: 'month', month: currentMonthString(date) };
+  return { mode: 'day', date: todayDateString(date) };
 }
 
 export function dateFilterToRange(filter: DateFilter): DateRange {
+  if (filter.mode === 'day') {
+    return { startDate: filter.date, endDate: filter.date };
+  }
+
   if (filter.mode === 'month') {
     return {
       startDate: `${filter.month}-01`,
@@ -24,36 +30,49 @@ export function dateFilterToRange(filter: DateFilter): DateRange {
     };
   }
 
-  if (filter.mode === 'year') {
+  if (filter.mode === 'range90') {
     return {
-      startDate: `${filter.year}-01-01`,
-      endDate: `${filter.year}-12-31`,
+      startDate: filter.startDate,
+      endDate: addDays(filter.startDate, 89),
     };
   }
 
-  return { startDate: filter.startDate, endDate: filter.endDate };
+  if (filter.mode === 'rangeYear') {
+    return {
+      startDate: filter.startDate,
+      endDate: addDays(addYears(filter.startDate, 1), -1),
+    };
+  }
+
+  return {
+    startDate: `${filter.year}-01-01`,
+    endDate: `${filter.year}-12-31`,
+  };
 }
 
 export function dateFilterLabel(filter: DateFilter): string {
+  if (filter.mode === 'day') return formatDateLabel(filter.date);
   if (filter.mode === 'month') return monthLabel(filter.month);
   if (filter.mode === 'year') return String(filter.year);
 
-  if (filter.startDate === filter.endDate) return formatDateLabel(filter.startDate);
-  return `${formatDateLabel(filter.startDate)} – ${formatDateLabel(filter.endDate)}`;
+  const range = dateFilterToRange(filter);
+  return `${formatDateLabel(range.startDate)} – ${formatDateLabel(range.endDate)}`;
 }
 
 export function dateFilterHelper(filter: DateFilter): string {
-  if (filter.mode === 'month') return 'Monthly';
-  if (filter.mode === 'year') return 'Yearly';
-  return 'Custom range';
+  if (filter.mode === 'day') return 'Day';
+  if (filter.mode === 'month') return 'Month';
+  if (filter.mode === 'range90') return '90-day span';
+  if (filter.mode === 'rangeYear') return '1-year span';
+  return 'Yearly';
 }
-
 
 export function dateFilterBudgetMultiplier(filter: DateFilter): number {
   if (filter.mode === 'month') return 1;
   if (filter.mode === 'year') return 12;
 
-  return budgetMultiplierForDateRange(filter.startDate, filter.endDate);
+  const range = dateFilterToRange(filter);
+  return budgetMultiplierForDateRange(range.startDate, range.endDate);
 }
 
 export function budgetForDateFilter(monthlyBudgetCents: number, filter: DateFilter): number {
@@ -61,30 +80,38 @@ export function budgetForDateFilter(monthlyBudgetCents: number, filter: DateFilt
 }
 
 export function dateFilterBudgetLabel(filter: DateFilter): string {
+  if (filter.mode === 'day') return 'Daily budget';
   if (filter.mode === 'month') return 'Monthly budget';
+  if (filter.mode === 'range90') return '90-day span budget';
+  if (filter.mode === 'rangeYear') return '1-year span budget';
   if (filter.mode === 'year') return 'Yearly budget · monthly × 12';
 
-  const days = daysInRange(filter.startDate, filter.endDate);
-  if (days === 1) return 'Daily budget';
-  return `${days}-day range budget`;
+  return 'Budget';
 }
 
 export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
+  if (filter.mode === 'day') {
+    return { mode: 'day', date: addDays(filter.date, delta) };
+  }
+
   if (filter.mode === 'month') {
     return { mode: 'month', month: shiftMonthValue(filter.month, delta) };
   }
 
-  if (filter.mode === 'year') {
-    return { mode: 'year', year: filter.year + delta };
+  if (filter.mode === 'range90') {
+    return { mode: 'range90', startDate: addDays(filter.startDate, delta * 90) };
   }
 
-  const { startDate, endDate } = filter;
-  const days = Math.max(1, daysBetween(startDate, endDate) + 1);
-  return {
-    mode: 'range',
-    startDate: addDays(startDate, delta * days),
-    endDate: addDays(endDate, delta * days),
-  };
+  if (filter.mode === 'rangeYear') {
+    return { mode: 'rangeYear', startDate: addYears(filter.startDate, delta) };
+  }
+
+  return { mode: 'year', year: filter.year + delta };
+}
+
+export function selectedDayForDateFilter(filter: DateFilter): string {
+  if (filter.mode === 'day') return filter.date;
+  return dateFilterToRange(filter).startDate;
 }
 
 export function normalizeRange(startDate: string, endDate: string): DateRange {
@@ -123,11 +150,6 @@ function daysBetween(startDate: string, endDate: string): number {
   const start = parseDate(startDate).getTime();
   const end = parseDate(endDate).getTime();
   return Math.round((end - start) / 86_400_000);
-}
-
-function daysInRange(startDate: string, endDate: string): number {
-  const normalized = normalizeRange(startDate, endDate);
-  return Math.max(1, daysBetween(normalized.startDate, normalized.endDate) + 1);
 }
 
 function budgetMultiplierForDateRange(startDate: string, endDate: string): number {

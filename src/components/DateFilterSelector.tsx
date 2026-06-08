@@ -4,18 +4,17 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-nati
 import Calendar from 'react-native-calendars/src/calendar';
 import type { DateData } from 'react-native-calendars/src/types';
 import {
-  clampRangeToOneYear,
   createDefaultDateFilter,
   dateFilterHelper,
   dateFilterLabel,
   dateFilterToRange,
-  isRangeWithinOneYear,
+  selectedDayForDateFilter,
   shiftDateFilter,
   yearsAround,
   type DateFilter,
   type DateFilterMode,
 } from '../lib/dateFilter';
-import { currentMonthString, todayDateString } from '../lib/dates';
+import { todayDateString } from '../lib/dates';
 import { useAppTheme } from '../theme/ThemeContext';
 
 type Props = {
@@ -34,9 +33,11 @@ type Marking = {
 };
 
 const MODES: Array<{ mode: DateFilterMode; label: string }> = [
+  { mode: 'day', label: 'Day' },
   { mode: 'month', label: 'Month' },
-  { mode: 'range', label: 'Range' },
-  { mode: 'year', label: 'Year' },
+  { mode: 'range90', label: '90-day' },
+  { mode: 'rangeYear', label: '1-year' },
+  { mode: 'year', label: 'Yearly' },
 ];
 
 const MONTHS = [
@@ -60,8 +61,6 @@ export function DateFilterSelector({ value, onChange }: Props) {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateFilter>(value);
-  const [rangeAnchor, setRangeAnchor] = useState<string | null>(value.mode === 'range' ? value.startDate : null);
-  const [rangeMessage, setRangeMessage] = useState<string | null>(null);
 
   const range = dateFilterToRange(draft);
   const selectedMonthYear = draft.mode === 'month' ? Number(draft.month.slice(0, 4)) : Number(range.startDate.slice(0, 4));
@@ -72,8 +71,6 @@ export function DateFilterSelector({ value, onChange }: Props) {
 
   const openPicker = () => {
     setDraft(value);
-    setRangeAnchor(value.mode === 'range' ? value.startDate : null);
-    setRangeMessage(null);
     setOpen(true);
   };
 
@@ -85,48 +82,44 @@ export function DateFilterSelector({ value, onChange }: Props) {
   };
 
   const switchMode = (mode: DateFilterMode) => {
-    setRangeMessage(null);
     if (mode === draft.mode) return;
-    const currentRange = dateFilterToRange(draft);
+    const selectedDay = selectedDayForDateFilter(draft);
+    if (mode === 'day') {
+      setDraft({ mode: 'day', date: selectedDay });
+      return;
+    }
     if (mode === 'month') {
-      setDraft({ mode: 'month', month: currentRange.startDate.slice(0, 7) });
+      setDraft({ mode: 'month', month: selectedDay.slice(0, 7) });
       return;
     }
-    if (mode === 'year') {
-      setDraft({ mode: 'year', year: Number(currentRange.startDate.slice(0, 4)) });
+    if (mode === 'range90') {
+      setDraft({ mode: 'range90', startDate: selectedDay });
       return;
     }
-    const nextRange = clampRangeToOneYear(currentRange.startDate, currentRange.endDate);
-    setDraft({ mode: 'range', ...nextRange });
-    setRangeAnchor(nextRange.startDate);
+    if (mode === 'rangeYear') {
+      setDraft({ mode: 'rangeYear', startDate: selectedDay });
+      return;
+    }
+    setDraft({ mode: 'year', year: Number(selectedDay.slice(0, 4)) });
   };
 
   const handleDayPress = (day: DateData) => {
     const dateString = day.dateString;
-    setRangeMessage(null);
-
-    if (draft.mode !== 'range') return;
-
-    if (!rangeAnchor || (draft.startDate && draft.endDate && rangeAnchor !== draft.startDate)) {
-      setRangeAnchor(dateString);
-      setDraft({ mode: 'range', startDate: dateString, endDate: dateString });
+    if (draft.mode === 'day') {
+      setDraft({ mode: 'day', date: dateString });
       return;
     }
-
-    if (!isRangeWithinOneYear(rangeAnchor, dateString)) {
-      const clamped = clampRangeToOneYear(rangeAnchor, dateString);
-      setDraft({ mode: 'range', ...clamped });
-      setRangeAnchor(null);
-      setRangeMessage('Range limited to 1 year.');
+    if (draft.mode === 'range90') {
+      setDraft({ mode: 'range90', startDate: dateString });
       return;
     }
-
-    const nextRange = clampRangeToOneYear(rangeAnchor, dateString);
-    setDraft({ mode: 'range', ...nextRange });
-    setRangeAnchor(null);
+    if (draft.mode === 'rangeYear') {
+      setDraft({ mode: 'rangeYear', startDate: dateString });
+    }
   };
 
   const nudge = (delta: number) => onChange(shiftDateFilter(value, delta));
+  const showsCalendar = draft.mode === 'day' || draft.mode === 'range90' || draft.mode === 'rangeYear';
 
   return (
     <>
@@ -156,7 +149,7 @@ export function DateFilterSelector({ value, onChange }: Props) {
             <View style={styles.header}>
               <View>
                 <Text style={styles.title}>Select date</Text>
-                <Text style={styles.subtitle}>Month, up to 1-year range, or whole year</Text>
+                <Text style={styles.subtitle}>Day, month, 90-day span, 1-year span, or yearly view</Text>
               </View>
               <Pressable accessibilityLabel="Close date selector" accessibilityRole="button" onPress={closePicker} style={styles.closeButton}>
                 <X color={colors.textMuted} size={20} strokeWidth={2.6} />
@@ -175,7 +168,6 @@ export function DateFilterSelector({ value, onChange }: Props) {
             </View>
 
             <Text style={styles.currentSelection}>{dateFilterLabel(draft)}</Text>
-            {rangeMessage ? <Text style={styles.rangeMessage}>{rangeMessage}</Text> : null}
 
             {draft.mode === 'month' ? (
               <View style={styles.monthPicker}>
@@ -211,11 +203,10 @@ export function DateFilterSelector({ value, onChange }: Props) {
                   );
                 })}
               </ScrollView>
-            ) : (
+            ) : showsCalendar ? (
               <Calendar
                 current={visibleMonth}
-                maxDate={rangeAnchor ? clampRangeToOneYear(rangeAnchor, '9999-12-31').endDate : undefined}
-                markingType="period"
+                markingType={draft.mode === 'day' ? undefined : 'period'}
                 markedDates={markedDates}
                 onDayPress={handleDayPress}
                 enableSwipeMonths
@@ -240,11 +231,11 @@ export function DateFilterSelector({ value, onChange }: Props) {
                 }}
                 style={styles.calendar}
               />
-            )}
+            ) : null}
 
             <View style={styles.actions}>
               <Pressable onPress={() => setDraft(createDefaultDateFilter())} style={styles.secondaryAction}>
-                <Text style={styles.secondaryActionText}>This month</Text>
+                <Text style={styles.secondaryActionText}>Today</Text>
               </Pressable>
               <Pressable onPress={applyDraft} style={styles.primaryAction}>
                 <Text style={styles.primaryActionText}>Apply</Text>
@@ -263,6 +254,11 @@ function buildMarkedDates(filter: DateFilter, primary: string, soft: string, onP
     [today]: { selectedColor: primary },
   };
 
+  if (filter.mode === 'day') {
+    markings[filter.date] = { selected: true, selectedColor: primary, selectedTextColor: onPrimary };
+    return markings;
+  }
+
   if (filter.mode === 'month') {
     const selectedDate = `${filter.month}-01`;
     markings[selectedDate] = { selected: true, selectedColor: primary, selectedTextColor: onPrimary };
@@ -271,17 +267,18 @@ function buildMarkedDates(filter: DateFilter, primary: string, soft: string, onP
 
   if (filter.mode === 'year') return markings;
 
-  if (filter.startDate === filter.endDate) {
-    markings[filter.startDate] = { selected: true, selectedColor: primary, selectedTextColor: onPrimary, startingDay: true, endingDay: true, color: primary, textColor: onPrimary };
+  const range = dateFilterToRange(filter);
+  if (range.startDate === range.endDate) {
+    markings[range.startDate] = { selected: true, selectedColor: primary, selectedTextColor: onPrimary, startingDay: true, endingDay: true, color: primary, textColor: onPrimary };
     return markings;
   }
 
-  const start = parseDate(filter.startDate);
-  const end = parseDate(filter.endDate);
+  const start = parseDate(range.startDate);
+  const end = parseDate(range.endDate);
   for (const cursor = new Date(start); cursor <= end; cursor.setDate(cursor.getDate() + 1)) {
     const date = todayDateString(cursor);
-    const isStart = date === filter.startDate;
-    const isEnd = date === filter.endDate;
+    const isStart = date === range.startDate;
+    const isEnd = date === range.endDate;
     markings[date] = {
       startingDay: isStart,
       endingDay: isEnd,
@@ -311,15 +308,14 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, gap: 12, maxHeight: '88%', padding: spacing.card, width: '100%' },
     header: { alignItems: 'flex-start', flexDirection: 'row', gap: 12, justifyContent: 'space-between' },
     title: { color: colors.text, fontSize: 20, fontWeight: '900' },
-    subtitle: { color: colors.textMuted, fontSize: 12, fontWeight: '600', marginTop: 2 },
+    subtitle: { color: colors.textMuted, fontSize: 12, fontWeight: '600', marginTop: 2, maxWidth: 270 },
     closeButton: { alignItems: 'center', borderRadius: 999, height: 34, justifyContent: 'center', width: 34 },
     modeRow: { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 3, padding: 3 },
-    modeButton: { alignItems: 'center', borderRadius: 11, flex: 1, paddingVertical: 8 },
+    modeButton: { alignItems: 'center', borderRadius: 11, flex: 1, paddingHorizontal: 3, paddingVertical: 8 },
     modeButtonSelected: { backgroundColor: colors.primarySoft },
-    modeText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+    modeText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
     modeTextSelected: { color: colors.primary },
     currentSelection: { color: colors.text, fontSize: 15, fontWeight: '800' },
-    rangeMessage: { color: colors.warning, fontSize: 12, fontWeight: '700' },
     calendar: { borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
     monthPicker: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 12, padding: 12 },
     pickerHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
