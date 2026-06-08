@@ -1,6 +1,7 @@
 import { Tabs } from 'expo-router';
 import { Home, ReceiptText, Settings, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, type ColorValue } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ExpenseSheetProvider, useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { useAppTheme } from '../../src/theme/ThemeContext';
 
@@ -10,8 +11,10 @@ function TabIcon({ Icon, color }: { Icon: LucideIcon; color: ColorValue }) {
 
 function TabsNavigator() {
   const { sheetOpen } = useExpenseSheet();
+  const insets = useSafeAreaInsets();
   const { theme } = useAppTheme();
   const { colors } = theme;
+  const tabBarLift = Math.max(insets.bottom, theme.isCompact ? 14 : 18);
 
   return (
     <Tabs
@@ -24,9 +27,9 @@ function TabsNavigator() {
         tabBarInactiveTintColor: colors.textMuted,
         tabBarLabelStyle: { fontSize: 12, fontWeight: '700' },
         tabBarStyle: {
-          height: theme.isCompact ? 64 : 70,
+          height: (theme.isCompact ? 64 : 70) + tabBarLift,
           paddingTop: theme.isCompact ? 6 : 8,
-          paddingBottom: theme.isCompact ? 8 : 10,
+          paddingBottom: tabBarLift,
           backgroundColor: colors.tabBar,
           borderTopWidth: StyleSheet.hairlineWidth,
           borderTopColor: colors.border,

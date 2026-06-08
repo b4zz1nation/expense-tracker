@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { ArrowRight, CheckCircle2, ChevronDown, ChevronLeft, PartyPopper, PiggyBank, Search, Sparkles, UserRound, WalletCards, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Alert, Animated, FlatList, Image, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../src/components/AppButton';
 import { CategoryIcon } from '../src/components/CategoryIcon';
 import { Screen } from '../src/components/Screen';
@@ -17,7 +18,8 @@ type Step = 0 | 1 | 2 | 3;
 export default function OnboardingScreen() {
   const { theme } = useAppTheme();
   const { colors } = theme;
-  const styles = useMemo(() => createStyles(theme), [theme]);
+  const insets = useSafeAreaInsets();
+  const styles = useMemo(() => createStyles(theme, insets.bottom), [insets.bottom, theme]);
   const [step, setStep] = useState<Step>(0);
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
@@ -331,16 +333,17 @@ function FeaturePill({ icon, label }: { icon: ReactNode; label: string }) {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme'], bottomInset = 0) {
   const { colors, spacing } = theme;
+  const tutorialBottomLift = Math.max(20, bottomInset + 18);
   return StyleSheet.create({
-    pageShell: { flexGrow: 1, justifyContent: 'space-between', gap: spacing.lg, minHeight: 620 },
+    pageShell: { flexGrow: 1, justifyContent: 'space-between', gap: spacing.lg, minHeight: theme.isCompact ? 0 : 620 },
     topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
     backButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 38, justifyContent: 'center', width: 38 },
     backButtonHidden: { opacity: 0 },
     pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
     stepCount: { color: colors.textMuted, fontSize: 12, fontWeight: '900', textAlign: 'right' },
-    stepCard: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: 'transparent', borderColor: 'transparent', borderRadius: 28, borderWidth: StyleSheet.hairlineWidth, gap: 12, justifyContent: 'center', minHeight: 360, padding: spacing.card + 4 },
+    stepCard: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: 'transparent', borderColor: 'transparent', borderRadius: 28, borderWidth: StyleSheet.hairlineWidth, gap: 12, justifyContent: 'center', minHeight: theme.isCompact ? 300 : 360, padding: theme.isCompact ? spacing.card : spacing.card + 4 },
     progressTrack: { alignItems: 'center', flexDirection: 'row', gap: 7, justifyContent: 'center' },
     progressDot: { backgroundColor: colors.surfaceMuted, borderRadius: 999, height: 8, width: 8 },
     progressDotActive: { backgroundColor: colors.primarySoftBorder },
@@ -367,7 +370,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     helper: { color: colors.textMuted, fontSize: 12, fontWeight: '600', lineHeight: 18, textAlign: 'center' },
     readyCard: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 9, marginTop: 4, padding: 13 },
     readyText: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '700', lineHeight: 18 },
-    bottomControls: { gap: 12 },
+    bottomControls: { gap: 12, marginBottom: tutorialBottomLift },
     microcopy: { color: colors.textMuted, fontSize: 12, fontWeight: '600', lineHeight: 18, textAlign: 'center' },
     modalRoot: { backgroundColor: colors.overlay, flex: 1, justifyContent: 'flex-end' },
     currencySheet: { backgroundColor: colors.sheet, borderTopLeftRadius: 26, borderTopRightRadius: 26, gap: 12, maxHeight: '78%', padding: spacing.card },
