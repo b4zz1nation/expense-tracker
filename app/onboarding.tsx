@@ -57,7 +57,9 @@ export default function OnboardingScreen() {
         return;
       }
     }
-    setStep((current) => Math.min(current + 1, TOTAL_STEPS - 1) as Step);
+    requestAnimationFrame(() => {
+      setStep((current) => Math.min(current + 1, TOTAL_STEPS - 1) as Step);
+    });
   };
 
   const goBack = () => {
@@ -196,7 +198,6 @@ function NameStep({ name, onChangeName }: { name: string; onChangeName: (value: 
           <UserRound color={colors.textMuted} size={20} strokeWidth={2.4} />
           <TextInput
             autoCapitalize="words"
-            autoFocus
             placeholder="Your name"
             placeholderTextColor={colors.textMuted}
             returnKeyType="next"
@@ -232,7 +233,6 @@ function BudgetStep({ budget, currency, onChangeBudget, onOpenCurrencyPicker }: 
             <ChevronDown color={colors.textMuted} size={16} strokeWidth={2.5} />
           </Pressable>
           <TextInput
-            autoFocus
             keyboardType="decimal-pad"
             placeholder="1200"
             placeholderTextColor={colors.textMuted}
