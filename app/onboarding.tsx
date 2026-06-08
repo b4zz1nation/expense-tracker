@@ -225,13 +225,20 @@ function BudgetStep({ budget, currency, onChangeBudget, onOpenCurrencyPicker }: 
       <Text style={styles.title}>Set your monthly budget.</Text>
       <Text style={styles.subtitle}>Choose your currency and monthly baseline. We scale it for longer calendar ranges automatically.</Text>
       <View style={styles.fieldGroup}>
+        <Text style={styles.label}>Currency</Text>
+        <Pressable accessibilityRole="button" onPress={onOpenCurrencyPicker} style={({ pressed }) => [styles.currencyPickerButton, pressed && styles.pressed]}>
+          <View style={styles.currencyPickerTextGroup}>
+            <Text style={styles.currencyPickerLabel}>Selected currency</Text>
+            <View style={styles.currencyPickerValueRow}>
+              <Text style={styles.currencyFlag}>{currency.flagEmoji}</Text>
+              <Text style={styles.currencyCode}>{currency.code}</Text>
+            </View>
+          </View>
+          <ChevronDown color={colors.textMuted} size={18} strokeWidth={2.5} />
+        </Pressable>
+
         <Text style={styles.label}>Monthly budget</Text>
         <View style={styles.inputRow}>
-          <Pressable accessibilityRole="button" onPress={onOpenCurrencyPicker} style={({ pressed }) => [styles.currencyChip, pressed && styles.pressed]}>
-            <Text style={styles.currencyFlag}>{currency.flagEmoji}</Text>
-            <Text style={styles.currencyCode}>{currency.code}</Text>
-            <ChevronDown color={colors.textMuted} size={16} strokeWidth={2.5} />
-          </Pressable>
           <TextInput
             keyboardType="decimal-pad"
             placeholder="1200"
@@ -380,9 +387,12 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme'], bottomInse
     label: { color: colors.text, fontSize: 14, fontWeight: '800', textAlign: 'center' },
     inputRow: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.input, borderColor: colors.border, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 8, paddingHorizontal: 10, paddingVertical: 4 },
     input: { color: colors.text, flex: 1, fontSize: 16, minHeight: 48, paddingVertical: 8 },
-    currencyChip: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 5, paddingHorizontal: 9, paddingVertical: 8 },
+    currencyPickerButton: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 16, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', justifyContent: 'space-between', minHeight: 54, paddingHorizontal: 14, paddingVertical: 9 },
+    currencyPickerTextGroup: { gap: 3 },
+    currencyPickerLabel: { color: colors.textMuted, fontSize: 11, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase' },
+    currencyPickerValueRow: { alignItems: 'center', flexDirection: 'row', gap: 7 },
     currencyFlag: { fontSize: 18 },
-    currencyCode: { color: colors.text, fontSize: 13, fontWeight: '900' },
+    currencyCode: { color: colors.text, fontSize: 14, fontWeight: '900' },
     helper: { color: colors.textMuted, fontSize: 12, fontWeight: '600', lineHeight: 18, textAlign: 'center' },
     readyCard: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 9, marginTop: 4, padding: 13 },
     readyText: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '700', lineHeight: 18 },
