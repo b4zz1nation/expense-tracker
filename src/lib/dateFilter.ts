@@ -53,19 +53,20 @@ export function dateFilterBudgetMultiplier(filter: DateFilter): number {
   if (filter.mode === 'month') return 1;
   if (filter.mode === 'year') return 12;
 
-  const days = Math.max(1, daysBetween(filter.startDate, filter.endDate) + 1);
-  return Math.min(12, Math.max(1, Math.ceil(days / 30.4375)));
+  return budgetMultiplierForDateRange(filter.startDate, filter.endDate);
 }
 
 export function budgetForDateFilter(monthlyBudgetCents: number, filter: DateFilter): number {
-  return monthlyBudgetCents * dateFilterBudgetMultiplier(filter);
+  return Math.round(monthlyBudgetCents * dateFilterBudgetMultiplier(filter));
 }
 
 export function dateFilterBudgetLabel(filter: DateFilter): string {
-  const multiplier = dateFilterBudgetMultiplier(filter);
   if (filter.mode === 'month') return 'Monthly budget';
   if (filter.mode === 'year') return 'Yearly budget · monthly × 12';
-  return `${multiplier}-month range budget · monthly × ${multiplier}`;
+
+  const days = daysInRange(filter.startDate, filter.endDate);
+  if (days === 1) return 'Daily budget';
+  return `${days}-day range budget`;
 }
 
 export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
@@ -122,6 +123,29 @@ function daysBetween(startDate: string, endDate: string): number {
   const start = parseDate(startDate).getTime();
   const end = parseDate(endDate).getTime();
   return Math.round((end - start) / 86_400_000);
+}
+
+function daysInRange(startDate: string, endDate: string): number {
+  const normalized = normalizeRange(startDate, endDate);
+  return Math.max(1, daysBetween(normalized.startDate, normalized.endDate) + 1);
+}
+
+function budgetMultiplierForDateRange(startDate: string, endDate: string): number {
+  const normalized = normalizeRange(startDate, endDate);
+  let cursor = normalized.startDate;
+  let multiplier = 0;
+
+  while (cursor <= normalized.endDate) {
+    multiplier += 1 / daysInMonth(cursor);
+    cursor = addDays(cursor, 1);
+  }
+
+  return multiplier;
+}
+
+function daysInMonth(dateString: string): number {
+  const [year, month] = dateString.split('-').map(Number);
+  return new Date(year, month, 0).getDate();
 }
 
 function addYears(dateString: string, years: number): string {

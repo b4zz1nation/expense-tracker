@@ -3,6 +3,7 @@ import {
   clampRangeToOneYear,
   createDefaultDateFilter,
   dateFilterBudgetMultiplier,
+  dateFilterBudgetLabel,
   dateFilterLabel,
   dateFilterToRange,
   isRangeWithinOneYear,
@@ -35,8 +36,17 @@ describe('date filter utilities', () => {
 
   it('scales monthly budget by selected calendar span', () => {
     expect(dateFilterBudgetMultiplier({ mode: 'month', month: '2026-06' })).toBe(1);
-    expect(dateFilterBudgetMultiplier({ mode: 'range', startDate: '2026-01-01', endDate: '2026-06-30' })).toBe(6);
+    expect(dateFilterBudgetMultiplier({ mode: 'range', startDate: '2026-01-01', endDate: '2026-06-30' })).toBeCloseTo(6);
     expect(dateFilterBudgetMultiplier({ mode: 'year', year: 2026 })).toBe(12);
     expect(budgetForDateFilter(100_00, { mode: 'range', startDate: '2026-01-01', endDate: '2026-06-30' })).toBe(600_00);
+  });
+
+  it('prorates range budgets by selected days', () => {
+    expect(dateFilterBudgetMultiplier({ mode: 'range', startDate: '2026-06-15', endDate: '2026-06-15' })).toBeCloseTo(1 / 30);
+    expect(budgetForDateFilter(3000, { mode: 'range', startDate: '2026-06-15', endDate: '2026-06-15' })).toBe(100);
+    expect(budgetForDateFilter(3100, { mode: 'range', startDate: '2026-01-15', endDate: '2026-01-15' })).toBe(100);
+    expect(budgetForDateFilter(3000, { mode: 'range', startDate: '2026-06-15', endDate: '2026-06-21' })).toBe(700);
+    expect(dateFilterBudgetLabel({ mode: 'range', startDate: '2026-06-15', endDate: '2026-06-15' })).toBe('Daily budget');
+    expect(dateFilterBudgetLabel({ mode: 'range', startDate: '2026-06-15', endDate: '2026-06-21' })).toBe('7-day range budget');
   });
 });
