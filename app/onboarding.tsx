@@ -1,11 +1,10 @@
 import { router } from 'expo-router';
 import { ArrowRight, CheckCircle2, ChevronDown, ChevronLeft, PartyPopper, PiggyBank, Search, Sparkles, UserRound, WalletCards, X } from 'lucide-react-native';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Alert, Animated, FlatList, Image, Keyboard, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Alert, Animated, FlatList, Image, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../src/components/AppButton';
 import { CategoryIcon } from '../src/components/CategoryIcon';
-import { Screen } from '../src/components/Screen';
 import { saveUserProfile, setPreferredCurrencyCode } from '../src/db/settingsRepo';
 import { getCurrencyOption, getCurrencyOptions, getDeviceDefaultCurrencyCode, type CurrencyOption } from '../src/lib/currencies';
 import { parseMoneyToCents } from '../src/lib/currency';
@@ -19,7 +18,7 @@ export default function OnboardingScreen() {
   const { theme } = useAppTheme();
   const { colors } = theme;
   const insets = useSafeAreaInsets();
-  const styles = useMemo(() => createStyles(theme, insets.bottom), [insets.bottom, theme]);
+  const styles = useMemo(() => createStyles(theme, insets.bottom, insets.top), [insets.bottom, insets.top, theme]);
   const [step, setStep] = useState<Step>(0);
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
@@ -84,7 +83,10 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <Screen keyboardAware>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.keyboardRoot}
+    >
       <View style={styles.pageShell}>
         <View style={styles.topBar}>
           <Pressable
@@ -99,19 +101,29 @@ export default function OnboardingScreen() {
           <Text style={styles.stepCount}>Step {step + 1} of {TOTAL_STEPS}</Text>
         </View>
 
-        <Animated.View style={[styles.stepCard, animatedStyle]}>
-          {step === 0 ? <WelcomeStep /> : null}
-          {step === 1 ? <NameStep name={name} onChangeName={setName} /> : null}
-          {step === 2 ? (
-            <BudgetStep
-              budget={budget}
-              currency={selectedCurrency}
-              onChangeBudget={setBudget}
-              onOpenCurrencyPicker={() => setCurrencyPickerOpen(true)}
-            />
-          ) : null}
-          {step === 3 ? <FinishStep name={name} /> : null}
-        </Animated.View>
+        <ScrollView
+          style={styles.stepScroll}
+          contentContainerStyle={styles.stepScrollContent}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'none'}
+          overScrollMode="never"
+          bounces={false}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.View style={[styles.stepCard, animatedStyle]}>
+            {step === 0 ? <WelcomeStep /> : null}
+            {step === 1 ? <NameStep name={name} onChangeName={setName} /> : null}
+            {step === 2 ? (
+              <BudgetStep
+                budget={budget}
+                currency={selectedCurrency}
+                onChangeBudget={setBudget}
+                onOpenCurrencyPicker={() => setCurrencyPickerOpen(true)}
+              />
+            ) : null}
+            {step === 3 ? <FinishStep name={name} /> : null}
+          </Animated.View>
+        </ScrollView>
 
         <View style={styles.bottomControls}>
           <View style={styles.progressTrack}>
@@ -137,7 +149,7 @@ export default function OnboardingScreen() {
           setCurrencyPickerOpen(false);
         }}
       />
-    </Screen>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -333,17 +345,21 @@ function FeaturePill({ icon, label }: { icon: ReactNode; label: string }) {
   );
 }
 
-function createStyles(theme: ReturnType<typeof useAppTheme>['theme'], bottomInset = 0) {
+function createStyles(theme: ReturnType<typeof useAppTheme>['theme'], bottomInset = 0, topInset = 0) {
   const { colors, spacing } = theme;
-  const tutorialBottomLift = Math.max(20, bottomInset + 18);
+  const bottomLift = Math.max(16, bottomInset + 12);
+  const topLift = Math.max(spacing.screen, topInset + 12);
   return StyleSheet.create({
-    pageShell: { flexGrow: 1, justifyContent: 'space-between', gap: spacing.lg, minHeight: theme.isCompact ? 0 : 620 },
+    keyboardRoot: { backgroundColor: colors.background, flex: 1 },
+    pageShell: { backgroundColor: colors.background, flex: 1, gap: theme.isCompact ? spacing.md : spacing.lg, paddingHorizontal: spacing.screen, paddingTop: topLift },
     topBar: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
     backButton: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 38, justifyContent: 'center', width: 38 },
     backButtonHidden: { opacity: 0 },
     pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
     stepCount: { color: colors.textMuted, fontSize: 12, fontWeight: '900', textAlign: 'right' },
-    stepCard: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: 'transparent', borderColor: 'transparent', borderRadius: 28, borderWidth: StyleSheet.hairlineWidth, gap: 12, justifyContent: 'center', minHeight: theme.isCompact ? 300 : 360, padding: theme.isCompact ? spacing.card : spacing.card + 4 },
+    stepScroll: { flex: 1 },
+    stepScrollContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: theme.isCompact ? 8 : 16 },
+    stepCard: { alignItems: 'center', alignSelf: 'stretch', backgroundColor: 'transparent', borderColor: 'transparent', borderRadius: 28, borderWidth: StyleSheet.hairlineWidth, gap: theme.isCompact ? 10 : 12, justifyContent: 'center', padding: theme.isCompact ? spacing.md : spacing.card + 4 },
     progressTrack: { alignItems: 'center', flexDirection: 'row', gap: 7, justifyContent: 'center' },
     progressDot: { backgroundColor: colors.surfaceMuted, borderRadius: 999, height: 8, width: 8 },
     progressDotActive: { backgroundColor: colors.primarySoftBorder },
@@ -370,7 +386,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme'], bottomInse
     helper: { color: colors.textMuted, fontSize: 12, fontWeight: '600', lineHeight: 18, textAlign: 'center' },
     readyCard: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 9, marginTop: 4, padding: 13 },
     readyText: { color: colors.textSecondary, flex: 1, fontSize: 13, fontWeight: '700', lineHeight: 18 },
-    bottomControls: { gap: 12, marginBottom: tutorialBottomLift },
+    bottomControls: { gap: theme.isCompact ? 8 : 12, paddingBottom: bottomLift },
     microcopy: { color: colors.textMuted, fontSize: 12, fontWeight: '600', lineHeight: 18, textAlign: 'center' },
     modalRoot: { backgroundColor: colors.overlay, flex: 1, justifyContent: 'flex-end' },
     currencySheet: { backgroundColor: colors.sheet, borderTopLeftRadius: 26, borderTopRightRadius: 26, gap: 12, maxHeight: '78%', padding: spacing.card },
