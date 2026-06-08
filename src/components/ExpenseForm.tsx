@@ -110,7 +110,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   const modalKeyboardGap = 12;
   const availableHeightAboveKeyboard = keyboardTop === null ? windowHeight : Math.max(0, keyboardTop - modalScreenPadding - modalKeyboardGap);
   const itemModalMaxHeight = keyboardVisible ? Math.max(160, availableHeightAboveKeyboard) : windowHeight * 0.85;
-  const displayCurrencyCode = currencyCode ?? initialExpense?.currency ?? 'USD';
+  const displayCurrencyCode = currencyCode ?? initialExpense?.currency ?? 'PHP';
   const itemTotalCents = values.items.reduce((total, item) => {
     const amount = Number.parseFloat(item.amount);
     return Number.isFinite(amount) && amount > 0 ? total + Math.round(amount * 100) : total;

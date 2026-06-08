@@ -12,7 +12,7 @@ export function parseMoneyToCents(input: string): number {
   return cents;
 }
 
-export function formatCents(cents: number, currency = 'USD', locale = 'en-US'): string {
+export function formatCents(cents: number, currency = 'PHP', locale = 'en-US'): string {
   return new Intl.NumberFormat(locale, {
     style: 'currency',
     currency,

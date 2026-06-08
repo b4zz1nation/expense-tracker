@@ -19,7 +19,7 @@ export default function ExpensesScreen() {
   const { theme } = useAppTheme();
   const styles = createStyles(theme);
   const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
-  const [displayCurrencyCode, setDisplayCurrencyCode] = useState('USD');
+  const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
   const { expenses, loading, error, refresh, monthlyTotal } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
 

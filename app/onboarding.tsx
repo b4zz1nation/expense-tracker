@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AppButton } from '../src/components/AppButton';
 import { CategoryIcon } from '../src/components/CategoryIcon';
 import { saveUserProfile, setPreferredCurrencyCode } from '../src/db/settingsRepo';
-import { getCurrencyOption, getCurrencyOptions, getDeviceDefaultCurrencyCode, type CurrencyOption } from '../src/lib/currencies';
+import { getCurrencyOption, getCurrencyOptions, getDeviceDefaultCurrencyCode, DEFAULT_CURRENCY_CODE, type CurrencyOption } from '../src/lib/currencies';
 import { parseMoneyToCents } from '../src/lib/currency';
 import { useAppTheme } from '../src/theme/ThemeContext';
 
@@ -27,7 +27,7 @@ export default function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
   const transition = useRef(new Animated.Value(1)).current;
 
-  const selectedCurrency = getCurrencyOption(currencyCode) ?? getCurrencyOption('USD')!;
+  const selectedCurrency = getCurrencyOption(currencyCode) ?? getCurrencyOption(DEFAULT_CURRENCY_CODE)!;
 
   useEffect(() => {
     transition.setValue(0);

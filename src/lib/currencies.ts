@@ -11,10 +11,19 @@ export type CurrencyOption = {
   flagEmoji: string;
 };
 
-const FALLBACK_CURRENCY = 'USD';
+export const DEFAULT_CURRENCY_CODE = 'PHP';
+
+const PREFERRED_CURRENCY_REGIONS: Record<string, string> = {
+  PHP: 'PH',
+  USD: 'US',
+};
+
 const currencyCodeToRegion = new Map<string, string>();
 for (const [regionCode, currencyCode] of Object.entries(countryToCurrency)) {
   if (!currencyCodeToRegion.has(currencyCode)) currencyCodeToRegion.set(currencyCode, regionCode);
+}
+for (const [currencyCode, regionCode] of Object.entries(PREFERRED_CURRENCY_REGIONS)) {
+  currencyCodeToRegion.set(currencyCode, regionCode);
 }
 
 function regionCodeToFlagEmoji(regionCode: string): string {
@@ -36,8 +45,8 @@ const CURRENCY_OPTIONS: CurrencyOption[] = currencyCodes.data
     };
   })
   .sort((left, right) => {
-    if (left.code === FALLBACK_CURRENCY) return -1;
-    if (right.code === FALLBACK_CURRENCY) return 1;
+    if (left.code === DEFAULT_CURRENCY_CODE) return -1;
+    if (right.code === DEFAULT_CURRENCY_CODE) return 1;
     return left.name.localeCompare(right.name) || left.code.localeCompare(right.code);
   });
 
@@ -62,6 +71,10 @@ function getRegionCodeFromLocale(): string | null {
 }
 
 export function getDeviceDefaultCurrencyCode(): string {
+  return DEFAULT_CURRENCY_CODE;
+}
+
+export function getLocaleCurrencyCode(): string {
   const locale = Localization.getLocales()[0];
   const directCurrency = locale?.currencyCode?.trim().toUpperCase();
   if (directCurrency && getCurrencyOption(directCurrency)) {
@@ -76,7 +89,7 @@ export function getDeviceDefaultCurrencyCode(): string {
     }
   }
 
-  return FALLBACK_CURRENCY;
+  return DEFAULT_CURRENCY_CODE;
 }
 
 export function getCurrencyDisplayName(code: string): string {

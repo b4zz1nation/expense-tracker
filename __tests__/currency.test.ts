@@ -14,7 +14,11 @@ describe('currency utilities', () => {
     expect(() => parseMoneyToCents('abc')).toThrow();
   });
 
-  it('formats cents as currency', () => {
-    expect(formatCents(1234)).toBe('$12.34');
+  it('formats cents with PHP as the app default currency', () => {
+    expect(formatCents(1234)).toBe('₱12.34');
+  });
+
+  it('formats cents as an explicit currency', () => {
+    expect(formatCents(1234, 'USD')).toBe('$12.34');
   });
 });

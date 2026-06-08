@@ -45,20 +45,20 @@ export default function SettingsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>(getDeviceDefaultCurrencyCode());
 
-  const deviceDefaultCurrencyCode = useMemo(() => getDeviceDefaultCurrencyCode(), []);
-  const currentCurrencyCode = storedCurrencyCode ?? deviceDefaultCurrencyCode;
-  const currentCurrency = getCurrencyOption(currentCurrencyCode) ?? getCurrencyOption(deviceDefaultCurrencyCode) ?? getCurrencyOptions()[0];
-  const deviceDefaultCurrency = getCurrencyOption(deviceDefaultCurrencyCode) ?? currentCurrency;
+  const appDefaultCurrencyCode = useMemo(() => getDeviceDefaultCurrencyCode(), []);
+  const currentCurrencyCode = storedCurrencyCode ?? appDefaultCurrencyCode;
+  const currentCurrency = getCurrencyOption(currentCurrencyCode) ?? getCurrencyOption(appDefaultCurrencyCode) ?? getCurrencyOptions()[0];
+  const appDefaultCurrency = getCurrencyOption(appDefaultCurrencyCode) ?? currentCurrency;
   const isUsingOverride = storedCurrencyCode !== null;
 
   useEffect(() => {
     void (async () => {
       const stored = await getPreferredCurrencySetting();
       setStoredCurrencyCode(stored?.trim().toUpperCase() ?? null);
-      setSelectedCurrencyCode((stored ?? deviceDefaultCurrencyCode).trim().toUpperCase());
+      setSelectedCurrencyCode((stored ?? appDefaultCurrencyCode).trim().toUpperCase());
       setLoadingCurrency(false);
     })();
-  }, [deviceDefaultCurrencyCode]);
+  }, [appDefaultCurrencyCode]);
 
   const currencyOptions = useMemo(() => getCurrencyOptions(), []);
   const filteredCurrencies = useMemo(() => {
@@ -127,19 +127,19 @@ export default function SettingsScreen() {
     }
   }, [closeCurrencyPicker]);
 
-  const resetToDeviceDefault = useCallback(async () => {
+  const resetToAppDefault = useCallback(async () => {
     setSavingCurrency(true);
     try {
       await resetPreferredCurrencyCode();
       setStoredCurrencyCode(null);
-      setSelectedCurrencyCode(deviceDefaultCurrencyCode);
+      setSelectedCurrencyCode(appDefaultCurrencyCode);
       closeCurrencyPicker();
     } catch (error) {
       Alert.alert('Could not reset currency', error instanceof Error ? error.message : 'Please try again.');
     } finally {
       setSavingCurrency(false);
     }
-  }, [closeCurrencyPicker, deviceDefaultCurrencyCode]);
+  }, [closeCurrencyPicker, appDefaultCurrencyCode]);
 
   const renderCurrencyRow = useCallback(({ item }: { item: CurrencyOption }) => {
     const selected = item.code === selectedCurrencyCode;
@@ -219,10 +219,10 @@ export default function SettingsScreen() {
             <Text style={styles.subtitle}>{currentCurrency?.name ?? getCurrencyDisplayName(currentCurrencyCode)}</Text>
             <Text style={styles.helperText}>
               {loadingCurrency
-                ? 'Checking your device locale…'
+                ? 'Checking currency setting…'
                 : isUsingOverride
-                  ? 'Saved on this device. Tap to change or reset to auto.'
-                  : 'Auto-detected from your current country.'}
+                  ? 'Saved on this device. Tap to change or reset to app default.'
+                  : 'Using the app default currency.'}
             </Text>
           </View>
         </View>
@@ -230,8 +230,8 @@ export default function SettingsScreen() {
           Choose Currency
         </AppButton>
         {isUsingOverride ? (
-          <Pressable onPress={resetToDeviceDefault} style={styles.resetButton}>
-            <Text style={styles.resetButtonText}>Reset to device default</Text>
+          <Pressable onPress={resetToAppDefault} style={styles.resetButton}>
+            <Text style={styles.resetButtonText}>Reset to app default</Text>
           </Pressable>
         ) : null}
       </View>
@@ -282,7 +282,7 @@ export default function SettingsScreen() {
             <View style={styles.sheetHeader}>
               <Text style={styles.sheetTitle}>Choose currency</Text>
               <Text style={styles.sheetSubtitle}>
-                Auto default: {deviceDefaultCurrency?.code ?? deviceDefaultCurrencyCode} · {deviceDefaultCurrency?.name ?? getCurrencyDisplayName(deviceDefaultCurrencyCode)}
+                App default: {appDefaultCurrency?.code ?? appDefaultCurrencyCode} · {appDefaultCurrency?.name ?? getCurrencyDisplayName(appDefaultCurrencyCode)}
               </Text>
 
               <View style={styles.searchBox}>
@@ -300,8 +300,8 @@ export default function SettingsScreen() {
               </View>
 
               <View style={styles.sheetActions}>
-                <Pressable onPress={resetToDeviceDefault} style={styles.sheetActionButton}>
-                  <Text style={styles.sheetActionButtonText}>Reset to auto</Text>
+                <Pressable onPress={resetToAppDefault} style={styles.sheetActionButton}>
+                  <Text style={styles.sheetActionButtonText}>Reset to app default</Text>
                 </Pressable>
               </View>
             </View>

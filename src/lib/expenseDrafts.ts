@@ -1,7 +1,7 @@
 import type { ExpenseDraft, ExpenseFormValues } from '../types/expense';
 import { parseMoneyToCents } from './currency';
 
-export function itemizedValuesToExpenseDrafts(values: ExpenseFormValues, currency = 'USD'): ExpenseDraft[] {
+export function itemizedValuesToExpenseDrafts(values: ExpenseFormValues, currency = 'PHP'): ExpenseDraft[] {
   const drafts = values.items.map((item) => ({
     amountCents: parseMoneyToCents(item.amount),
     currency,

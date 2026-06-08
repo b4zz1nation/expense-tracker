@@ -17,7 +17,7 @@ export default function ProfileScreen() {
   const { profile, loadingProfile, refreshProfile, updateProfile } = useProfile();
   const [name, setName] = useState('');
   const [budget, setBudget] = useState('');
-  const [currencyCode, setCurrencyCode] = useState('USD');
+  const [currencyCode, setCurrencyCode] = useState('PHP');
   const [saving, setSaving] = useState(false);
 
   useFocusEffect(useCallback(() => {

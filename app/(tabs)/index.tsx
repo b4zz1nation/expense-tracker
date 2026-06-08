@@ -33,7 +33,7 @@ export default function DashboardScreen() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [displayCurrencyCode, setDisplayCurrencyCode] = useState('USD');
+  const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
   const { recentExpenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
