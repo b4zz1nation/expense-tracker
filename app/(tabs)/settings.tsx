@@ -1,4 +1,4 @@
-import { CheckCircle, ChevronRight, MonitorCog, Moon, Search, Sun, UserRound, type LucideIcon } from 'lucide-react-native';
+import { CheckCircle, ChevronRight, MonitorCog, Moon, Search, Sun, Trash2, UserRound, WalletCards, type LucideIcon } from 'lucide-react-native';
 import { router } from 'expo-router';
 import {
   BottomSheetBackdrop,
@@ -7,10 +7,8 @@ import {
   BottomSheetTextInput,
 } from '@gorhom/bottom-sheet';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
-import { AppButton } from '../../src/components/AppButton';
+import { Alert, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Screen } from '../../src/components/Screen';
-import { clearExpenses } from '../../src/db/expensesRepo';
 import {
   getCurrencyDisplayName,
   getCurrencyOption,
@@ -21,6 +19,7 @@ import {
   getPreferredCurrencySetting,
   resetPreferredCurrencyCode,
   setPreferredCurrencyCode,
+  wipeAllAppData,
 } from '../../src/db/settingsRepo';
 import { useAppTheme } from '../../src/theme/ThemeContext';
 import type { ThemeMode } from '../../src/theme/theme';
@@ -43,6 +42,8 @@ export default function SettingsScreen() {
   const [savingCurrency, setSavingCurrency] = useState(false);
   const [savingThemeMode, setSavingThemeMode] = useState<ThemeMode | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [wipeModalVisible, setWipeModalVisible] = useState(false);
+  const [wipingData, setWipingData] = useState(false);
   const [selectedCurrencyCode, setSelectedCurrencyCode] = useState<string>(getDeviceDefaultCurrencyCode());
 
   const appDefaultCurrencyCode = useMemo(() => getDeviceDefaultCurrencyCode(), []);
@@ -76,21 +77,26 @@ export default function SettingsScreen() {
     });
   }, [currencyOptions, searchQuery, selectedCurrencyCode]);
 
-  const clear = async () => {
-    Alert.alert('Clear all expenses?', 'This removes all expenses from normal views. This action cannot be undone in the app yet.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear All',
-        style: 'destructive',
-        onPress: () => {
-          void (async () => {
-            await clearExpenses();
-            Alert.alert('Data cleared', 'All expenses were removed.');
-          })();
-        },
-      },
-    ]);
-  };
+  const openWipeModal = useCallback(() => {
+    setWipeModalVisible(true);
+  }, []);
+
+  const closeWipeModal = useCallback(() => {
+    if (!wipingData) setWipeModalVisible(false);
+  }, [wipingData]);
+
+  const confirmDataWipe = useCallback(async () => {
+    setWipingData(true);
+    try {
+      await wipeAllAppData();
+      setWipeModalVisible(false);
+      router.replace('/onboarding');
+    } catch (error) {
+      Alert.alert('Could not wipe data', error instanceof Error ? error.message : 'Please try again.');
+    } finally {
+      setWipingData(false);
+    }
+  }, []);
 
   const chooseThemeMode = useCallback(async (nextMode: ThemeMode) => {
     setSavingThemeMode(nextMode);
@@ -197,51 +203,96 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <Pressable accessibilityRole="button" onPress={() => router.push('/profile')} style={styles.profileCard}>
-        <View style={styles.profileIcon}>
-          <UserRound color={colors.primary} size={22} strokeWidth={2.5} />
+      <Pressable
+        accessibilityRole="button"
+        onPress={() => router.push('/profile')}
+        style={({ pressed }) => [styles.card, styles.actionCard, pressed && styles.cardPressed]}
+      >
+        <View style={styles.cardIcon}>
+          <UserRound color={colors.primary} size={20} strokeWidth={2.5} />
         </View>
-        <View style={styles.profileText}>
-          <Text style={styles.title}>Profile</Text>
-          <Text style={styles.subtitle}>Edit your name and monthly budget</Text>
+        <View style={styles.cardText}>
+          <Text style={styles.sectionLabel}>Profile</Text>
+          <Text style={styles.title}>Name & Budget</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>Edit your monthly plan</Text>
         </View>
         <ChevronRight color={colors.textMuted} size={22} strokeWidth={2.4} />
       </Pressable>
 
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Currency</Text>
-        <View style={styles.currencySummaryRow}>
-          <View style={styles.currencySummaryBadge}>
-            <Text style={styles.currencySummarySymbol}>{currentCurrency?.symbol ?? '$'}</Text>
-          </View>
-          <View style={styles.currencySummaryText}>
-            <Text style={styles.title}>{currentCurrency?.code ?? currentCurrencyCode}</Text>
-            <Text style={styles.subtitle}>{currentCurrency?.name ?? getCurrencyDisplayName(currentCurrencyCode)}</Text>
-            <Text style={styles.helperText}>
-              {loadingCurrency
-                ? 'Checking currency setting…'
-                : isUsingOverride
-                  ? 'Saved on this device. Tap to change or reset to app default.'
-                  : 'Using the app default currency.'}
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ busy: loadingCurrency }}
+        onPress={openCurrencyPicker}
+        style={({ pressed }) => [styles.card, styles.actionCard, pressed && styles.cardPressed]}
+      >
+        <View style={styles.cardIcon}>
+          <WalletCards color={colors.primary} size={20} strokeWidth={2.5} />
+        </View>
+        <View style={styles.cardText}>
+          <Text style={styles.sectionLabel}>Currency</Text>
+          <Text style={styles.title}>{currentCurrency?.code ?? currentCurrencyCode}</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>
+            {loadingCurrency ? 'Checking setting…' : currentCurrency?.name ?? getCurrencyDisplayName(currentCurrencyCode)}
+          </Text>
+        </View>
+        <ChevronRight color={colors.textMuted} size={22} strokeWidth={2.4} />
+      </Pressable>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Clear all expenses and restart onboarding"
+        onPress={openWipeModal}
+        style={({ pressed }) => [styles.card, styles.actionCard, styles.dangerCard, pressed && styles.cardPressed]}
+      >
+        <View style={[styles.cardIcon, styles.dangerIcon]}>
+          <Trash2 color={colors.expense} size={20} strokeWidth={2.5} />
+        </View>
+        <View style={styles.cardText}>
+          <Text style={styles.sectionLabel}>Storage</Text>
+          <Text style={[styles.title, styles.dangerTitle]}>Clear All Expenses</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>Wipe data and restart setup</Text>
+        </View>
+        <ChevronRight color={colors.expense} size={22} strokeWidth={2.4} />
+      </Pressable>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={wipeModalVisible}
+        onRequestClose={closeWipeModal}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} disabled={wipingData} onPress={closeWipeModal} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalIconWrap}>
+              <Trash2 color={colors.expense} size={26} strokeWidth={2.6} />
+            </View>
+            <Text style={styles.modalTitle}>Wipe all data?</Text>
+            <Text style={styles.modalText}>
+              This permanently clears every expense, your name, budget, currency setting, and onboarding status. Bean will restart from onboarding Screen 1.
             </Text>
+            <View style={styles.modalActions}>
+              <Pressable
+                accessibilityRole="button"
+                disabled={wipingData}
+                onPress={closeWipeModal}
+                style={({ pressed }) => [styles.modalButton, styles.cancelButton, pressed && styles.cardPressed]}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Confirm data wipe"
+                disabled={wipingData}
+                onPress={() => { void confirmDataWipe(); }}
+                style={({ pressed }) => [styles.modalButton, styles.deleteButton, (pressed || wipingData) && styles.deleteButtonPressed]}
+              >
+                <Text style={styles.deleteButtonText}>{wipingData ? 'Wiping…' : 'Delete'}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
-        <AppButton variant="secondary" onPress={openCurrencyPicker}>
-          Choose Currency
-        </AppButton>
-        {isUsingOverride ? (
-          <Pressable onPress={resetToAppDefault} style={styles.resetButton}>
-            <Text style={styles.resetButtonText}>Reset to app default</Text>
-          </Pressable>
-        ) : null}
-      </View>
-
-      <View style={styles.card}>
-        <Text style={styles.sectionLabel}>Storage</Text>
-        <Text style={styles.text}>Local-first SQLite database. Expenses stay on this device.</Text>
-      </View>
-
-      <AppButton variant="danger" onPress={clear}>Clear All Expenses</AppButton>
+      </Modal>
 
       <BottomSheetModal
         backdropComponent={(props) => (
@@ -325,27 +376,23 @@ export default function SettingsScreen() {
 function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   const { colors, spacing } = theme;
   return StyleSheet.create({
-    card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card, gap: spacing.md },
-    appearanceCard: { gap: spacing.sm, paddingVertical: theme.isCompact ? 12 : 14 },
-    profileCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 12, padding: spacing.card },
-    profileIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 16, height: 46, justifyContent: 'center', width: 46 },
-    profileText: { flex: 1, gap: 2 },
+    card: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, gap: spacing.sm, minHeight: theme.isCompact ? 88 : 96, paddingHorizontal: spacing.card, paddingVertical: theme.isCompact ? 12 : 14 },
+    appearanceCard: { justifyContent: 'center' },
+    actionCard: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+    cardPressed: { opacity: 0.9, transform: [{ scale: 0.995 }] },
+    cardIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 16, height: 44, justifyContent: 'center', width: 44 },
+    cardText: { flex: 1, gap: 2 },
+    dangerCard: { borderColor: colors.expenseSoft },
+    dangerIcon: { backgroundColor: colors.expenseSoft },
+    dangerTitle: { color: colors.expense },
     sectionLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '700', letterSpacing: 0.5, textTransform: 'uppercase' },
     themeSegment: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 14, borderWidth: 1, flexDirection: 'row', gap: 3, padding: 3 },
     themeSegmentOption: { alignItems: 'center', borderRadius: 11, flex: 1, flexDirection: 'row', gap: 5, justifyContent: 'center', minHeight: 34, paddingHorizontal: 6 },
     themeSegmentOptionSelected: { backgroundColor: colors.primarySoft },
     themeSegmentText: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
     themeSegmentTextSelected: { color: colors.primary },
-    currencySummaryRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
-    currencySummaryBadge: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 18, height: 56, justifyContent: 'center', width: 56 },
-    currencySummarySymbol: { color: colors.primary, fontSize: 24, fontWeight: '800' },
-    currencySummaryText: { flex: 1, gap: 3 },
     title: { color: colors.text, fontSize: 18, fontWeight: '800' },
     subtitle: { color: colors.textSecondary, fontSize: 15, fontWeight: '600' },
-    helperText: { color: colors.textMuted, lineHeight: 20 },
-    text: { color: colors.textMuted, lineHeight: 20 },
-    resetButton: { alignSelf: 'flex-start' },
-    resetButtonText: { color: colors.primary, fontWeight: '700' },
     sheetBackground: { backgroundColor: colors.sheet },
     sheetHandleIndicator: { backgroundColor: colors.sheetHandle },
     sheetHeader: { backgroundColor: colors.sheet, gap: spacing.md, paddingHorizontal: spacing.screen, paddingTop: 8, paddingBottom: 14 },
@@ -371,5 +418,18 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     savingOverlay: { bottom: 20, left: 0, position: 'absolute', right: 0, alignItems: 'center' },
     savingPill: { backgroundColor: colors.text, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
     savingPillText: { color: colors.background, fontWeight: '700' },
+    modalOverlay: { alignItems: 'center', backgroundColor: colors.overlay, flex: 1, justifyContent: 'center', padding: spacing.screen },
+    modalCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, gap: spacing.md, maxWidth: 420, padding: spacing.xl, width: '100%' },
+    modalIconWrap: { alignItems: 'center', backgroundColor: colors.expenseSoft, borderRadius: 20, height: 58, justifyContent: 'center', width: 58 },
+    modalTitle: { color: colors.text, fontSize: 22, fontWeight: '800', textAlign: 'center' },
+    modalText: { color: colors.textSecondary, fontSize: 15, fontWeight: '600', lineHeight: 22, textAlign: 'center' },
+    modalActions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs, width: '100%' },
+    modalButton: { alignItems: 'center', borderRadius: 16, flex: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: 14 },
+    cancelButton: { backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderWidth: 1 },
+    cancelButtonText: { color: colors.text, fontSize: 16, fontWeight: '800' },
+    deleteButton: { backgroundColor: colors.expense },
+    deleteButtonPressed: { opacity: 0.82 },
+    deleteButtonText: { color: colors.textInverse, fontSize: 16, fontWeight: '900' },
   });
 }
+

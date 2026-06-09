@@ -63,6 +63,15 @@ export async function resetPreferredCurrencyCode(): Promise<void> {
   await clearSetting(SETTINGS_KEYS.preferredCurrency);
 }
 
+export async function wipeAllAppData(): Promise<void> {
+  await initDb();
+  const db = await getDatabase();
+  await db.execAsync(`
+    DELETE FROM expenses;
+    DELETE FROM app_settings;
+  `);
+}
+
 export async function getThemeModeSetting(): Promise<ThemeMode | null> {
   const stored = await getSetting(SETTINGS_KEYS.themeMode);
   return isThemeMode(stored) ? stored : null;
