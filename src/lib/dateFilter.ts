@@ -67,6 +67,14 @@ export function dateFilterHelper(filter: DateFilter): string {
   return 'Yearly';
 }
 
+export function dateFilterExpensesTitle(filter: DateFilter): string {
+  if (filter.mode === 'day') return 'Day view expenses';
+  if (filter.mode === 'month') return 'Month view expenses';
+  if (filter.mode === 'range90') return '90-day view expenses';
+  if (filter.mode === 'rangeYear') return '1-year view expenses';
+  return 'Year view expenses';
+}
+
 export function dateFilterBudgetMultiplier(filter: DateFilter): number {
   if (filter.mode === 'month') return 1;
   if (filter.mode === 'year') return 12;

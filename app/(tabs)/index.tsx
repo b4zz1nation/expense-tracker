@@ -16,7 +16,7 @@ import { CATEGORIES } from '../../src/constants/categories';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
-import { budgetForDateFilter, createDefaultDateFilter, dateFilterBudgetLabel, dateFilterLabel, selectedDayForDateFilter } from '../../src/lib/dateFilter';
+import { budgetForDateFilter, createDefaultDateFilter, dateFilterBudgetLabel, dateFilterExpensesTitle, dateFilterLabel } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useAppTheme } from '../../src/theme/ThemeContext';
@@ -34,10 +34,7 @@ export default function DashboardScreen() {
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
-  const selectedDay = selectedDayForDateFilter(dateFilter);
-  const dayFilter = useMemo(() => ({ mode: 'day' as const, date: selectedDay }), [selectedDay]);
   const { expenses, recentExpenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
-  const { expenses: dayExpenses, monthlyTotal: dayTotal, loading: loadingDayExpenses, refresh: refreshDayExpenses } = useExpenses(dayFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
   const recentSheetRef = useRef<BottomSheetModal>(null);
@@ -48,9 +45,8 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       void refresh();
-      void refreshDayExpenses();
       void refreshProfile();
-    }, [refresh, refreshDayExpenses, refreshProfile])
+    }, [refresh, refreshProfile])
   );
 
   useFocusEffect(useCallback(() => {
@@ -124,7 +120,7 @@ export default function DashboardScreen() {
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0);
   const latestDashboardExpenses = recentExpenses.slice(0, 4);
-  const dayPreviewExpenses = dayExpenses.slice(0, 3);
+  const viewPreviewExpenses = expenses.slice(0, 3);
   const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
   const remainingBudgetCents = activeBudgetCents - monthlyTotal;
   const isOverBudget = profile ? remainingBudgetCents < 0 : false;
@@ -169,16 +165,15 @@ export default function DashboardScreen() {
               <CalendarCheck color={colors.primary} size={18} strokeWidth={2.5} />
             </View>
             <View>
-              <Text style={styles.sectionTitle}>Day view expenses</Text>
-              <Text style={styles.sectionSubtitle}>{dateFilterLabel(dayFilter)} · {formatCents(dayTotal, displayCurrencyCode)}</Text>
+              <Text style={styles.sectionTitle}>{dateFilterExpensesTitle(dateFilter)}</Text>
+              <Text style={styles.sectionSubtitle}>{dateFilterLabel(dateFilter)} · {formatCents(monthlyTotal, displayCurrencyCode)}</Text>
             </View>
           </View>
         </View>
-        {loadingDayExpenses ? <ActivityIndicator /> : null}
-        {dayPreviewExpenses.length === 0 && !loadingDayExpenses ? (
-          <EmptyState title="No expenses for this day" message="Use the arrows in Day view to move between days, or add an expense for this date." actionLabel="Add Expense" onAction={() => router.push('/expenses/new')} />
+        {viewPreviewExpenses.length === 0 && !loading ? (
+          <EmptyState title="No expenses in this view" message="Use the arrows to move between periods, or add an expense for this selection." actionLabel="Add Expense" onAction={() => router.push('/expenses/new')} />
         ) : (
-          dayPreviewExpenses.map((expense) => (
+          viewPreviewExpenses.map((expense) => (
             <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} onPress={() => openExpenseSheet(expense)} />
           ))
         )}

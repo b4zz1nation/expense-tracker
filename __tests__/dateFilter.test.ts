@@ -4,6 +4,7 @@ import {
   createDefaultDateFilter,
   dateFilterBudgetMultiplier,
   dateFilterBudgetLabel,
+  dateFilterExpensesTitle,
   dateFilterHelper,
   dateFilterLabel,
   dateFilterToRange,
@@ -42,6 +43,11 @@ describe('date filter utilities', () => {
     expect(dateFilterHelper({ mode: 'rangeYear', startDate: '2026-06-02' })).toBe('1-year span');
     expect(dateFilterLabel({ mode: 'year', year: 2024 })).toBe('2024');
     expect(selectedDayForDateFilter({ mode: 'month', month: '2026-06' })).toBe('2026-06-01');
+    expect(dateFilterExpensesTitle({ mode: 'day', date: '2026-06-02' })).toBe('Day view expenses');
+    expect(dateFilterExpensesTitle({ mode: 'month', month: '2026-06' })).toBe('Month view expenses');
+    expect(dateFilterExpensesTitle({ mode: 'range90', startDate: '2026-06-02' })).toBe('90-day view expenses');
+    expect(dateFilterExpensesTitle({ mode: 'rangeYear', startDate: '2026-06-02' })).toBe('1-year view expenses');
+    expect(dateFilterExpensesTitle({ mode: 'year', year: 2026 })).toBe('Year view expenses');
   });
 
   it('scales monthly budget by selected calendar span', () => {
