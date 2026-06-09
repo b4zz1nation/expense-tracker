@@ -4,7 +4,6 @@ export const DEFAULT_BUDGET_CATEGORIES: BudgetCategory[] = [
   { id: 'food', name: 'Food', emoji: '🍔', color: '#F97316', budgetCents: 0, isDefault: true },
   { id: 'utilities', name: 'Utilities', emoji: '⚡️', color: '#EAB308', budgetCents: 0, isDefault: true },
   { id: 'bills', name: 'Bills', emoji: '📄', color: '#EF4444', budgetCents: 0, isDefault: true },
-  { id: 'other', name: 'Others', emoji: '🛒', color: '#64748B', budgetCents: 0, isDefault: true },
 ];
 
 const LEGACY_CATEGORY_INFO: Record<string, Omit<BudgetCategory, 'budgetCents'>> = {

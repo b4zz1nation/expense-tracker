@@ -1,12 +1,12 @@
 import { Plus, Trash2 } from 'lucide-react-native';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { DEFAULT_BUDGET_CATEGORIES, createCategoryId } from '../lib/categoryBudgets';
-import { formatCents, parseMoneyToCents } from '../lib/currency';
+import { formatCents } from '../lib/currency';
 import { useAppTheme } from '../theme/ThemeContext';
 import type { BudgetCategory } from '../types/categoryBudget';
+import { OpenMojiEmojiPicker } from './OpenMojiEmojiPicker';
 
-const QUICK_EMOJIS = ['🍔', '⚡️', '📄', '🛒', '🏠', '🚗', '🎬', '💊', '✈️', '🐾'];
 const COLORS = ['#F97316', '#EAB308', '#EF4444', '#64748B', '#3B82F6', '#A855F7', '#22C55E', '#EC4899', '#14B8A6'];
 
 type Props = {
@@ -19,18 +19,54 @@ function centsToInput(cents: number): string {
   return cents > 0 ? (cents / 100).toFixed(2) : '';
 }
 
+function parseBudgetInput(value: string): number {
+  const normalized = value.replace(',', '.').trim();
+  if (!normalized || normalized === '.') return 0;
+  const withWholePart = normalized.startsWith('.') ? `0${normalized}` : normalized;
+  const [whole = '0', fraction = ''] = withWholePart.split('.');
+  const cents = Number(whole || '0') * 100 + Number(fraction.padEnd(2, '0'));
+  return Number.isSafeInteger(cents) && cents >= 0 ? cents : 0;
+}
+
 export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Props) {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
   const [customName, setCustomName] = useState('');
-  const [customEmoji, setCustomEmoji] = useState('✨');
+  const [amountInputs, setAmountInputs] = useState<Record<string, string>>(() => Object.fromEntries(categories.map((category) => [category.id, centsToInput(category.budgetCents)])));
+  const [emojiPickerCategoryId, setEmojiPickerCategoryId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setAmountInputs((current) => {
+      const next: Record<string, string> = {};
+      categories.forEach((category) => {
+        next[category.id] = current[category.id] ?? centsToInput(category.budgetCents);
+      });
+      return next;
+    });
+  }, [categories]);
 
   const totalBudget = categories.reduce((total, category) => total + category.budgetCents, 0);
   const enabledIds = new Set(categories.map((category) => category.id));
+  const emojiPickerCategory = categories.find((category) => category.id === emojiPickerCategoryId) ?? null;
 
   const updateCategory = (id: string, changes: Partial<BudgetCategory>) => {
     onChange(categories.map((category) => (category.id === id ? { ...category, ...changes } : category)));
+  };
+
+  const updateBudgetInput = (id: string, value: string) => {
+    const sanitized = value.replace(/[^0-9.,]/g, '').replace(/,/g, '.');
+    if (!/^\d*(\.\d{0,2})?$/.test(sanitized)) return;
+    setAmountInputs((current) => ({ ...current, [id]: sanitized }));
+    try {
+      updateCategory(id, { budgetCents: parseBudgetInput(sanitized) });
+    } catch {
+      // Keep the user's in-progress value editable; validation happens as they finish typing.
+    }
+  };
+
+  const blurBudgetInput = (category: BudgetCategory) => {
+    setAmountInputs((current) => ({ ...current, [category.id]: centsToInput(category.budgetCents) }));
   };
 
   const toggleDefaultCategory = (category: BudgetCategory) => {
@@ -43,21 +79,24 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
 
   const addCustomCategory = () => {
     const name = customName.trim();
-    const emoji = customEmoji.trim();
     if (!name) {
       Alert.alert('Category name', 'Enter a name for the custom category.');
       return;
     }
     onChange([
       ...categories,
-      { id: createCategoryId(name), name, emoji: emoji || '✨', color: COLORS[categories.length % COLORS.length], budgetCents: 0 },
+      { id: createCategoryId(name), name, emoji: '✨', color: COLORS[categories.length % COLORS.length], budgetCents: 0 },
     ]);
     setCustomName('');
-    setCustomEmoji('✨');
   };
 
   const removeCategory = (id: string) => {
     onChange(categories.filter((category) => category.id !== id));
+  };
+
+  const selectEmoji = (emoji: string) => {
+    if (!emojiPickerCategoryId) return;
+    updateCategory(emojiPickerCategoryId, { emoji });
   };
 
   return (
@@ -70,6 +109,7 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
       <View style={styles.defaultChips}>
         {DEFAULT_BUDGET_CATEGORIES.map((category) => {
           const selected = enabledIds.has(category.id);
+          const currentCategory = categories.find((entry) => entry.id === category.id) ?? category;
           return (
             <Pressable
               key={category.id}
@@ -78,7 +118,7 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
               onPress={() => toggleDefaultCategory(category)}
               style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
             >
-              <Text style={styles.chipEmoji}>{category.emoji}</Text>
+              <Text style={styles.chipEmoji}>{currentCategory.emoji}</Text>
               <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{category.name}</Text>
             </Pressable>
           );
@@ -90,7 +130,14 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
           <View key={category.id} style={styles.categoryCard}>
             <View style={styles.categoryHeader}>
               <View style={styles.categoryTitleRow}>
-                <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={`Choose emoji for ${category.name}`}
+                  onPress={() => setEmojiPickerCategoryId(category.id)}
+                  style={({ pressed }) => [styles.categoryEmojiButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                </Pressable>
                 <TextInput
                   value={category.name}
                   editable={!category.isDefault}
@@ -112,12 +159,9 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
             <View style={styles.amountRow}>
               <TextInput
                 keyboardType="decimal-pad"
-                value={centsToInput(category.budgetCents)}
-                onChangeText={(value) => {
-                  let budgetCents = 0;
-                  try { budgetCents = value.trim() ? parseMoneyToCents(value) : 0; } catch { budgetCents = 0; }
-                  updateCategory(category.id, { budgetCents });
-                }}
+                value={amountInputs[category.id] ?? ''}
+                onChangeText={(value) => updateBudgetInput(category.id, value)}
+                onBlur={() => blurBudgetInput(category)}
                 placeholder="0.00"
                 placeholderTextColor={colors.textMuted}
                 selectionColor={colors.primary}
@@ -131,22 +175,7 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
 
       <View style={styles.customCard}>
         <Text style={styles.customTitle}>Add custom category</Text>
-        <View style={styles.quickEmojis}>
-          {QUICK_EMOJIS.map((emoji) => (
-            <Pressable key={emoji} onPress={() => setCustomEmoji(emoji)} style={[styles.emojiChip, customEmoji === emoji && styles.emojiChipSelected]}>
-              <Text style={styles.emojiText}>{emoji}</Text>
-            </Pressable>
-          ))}
-        </View>
         <View style={styles.customRow}>
-          <TextInput
-            value={customEmoji}
-            onChangeText={setCustomEmoji}
-            maxLength={4}
-            style={styles.emojiInput}
-            placeholder="✨"
-            placeholderTextColor={colors.textMuted}
-          />
           <TextInput
             value={customName}
             onChangeText={setCustomName}
@@ -159,7 +188,16 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
             <Plus color={colors.onPrimary} size={20} strokeWidth={2.7} />
           </Pressable>
         </View>
+        <Text style={styles.customHint}>New custom categories start with ✨. Tap the emoji on the category row to choose from the full OpenMoji set.</Text>
       </View>
+
+      <OpenMojiEmojiPicker
+        visible={emojiPickerCategoryId !== null}
+        selectedEmoji={emojiPickerCategory?.emoji}
+        title={emojiPickerCategory ? `Choose ${emojiPickerCategory.name} emoji` : 'Choose emoji'}
+        onClose={() => setEmojiPickerCategoryId(null)}
+        onSelect={selectEmoji}
+      />
     </View>
   );
 }
@@ -181,7 +219,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 10, padding: spacing.md },
     categoryHeader: { alignItems: 'center', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
     categoryTitleRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10, minWidth: 0 },
-    categoryEmoji: { fontSize: 22, width: 28 },
+    categoryEmojiButton: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 38, justifyContent: 'center', width: 38 },
+    categoryEmoji: { fontSize: 22, lineHeight: 28 },
     categoryNameInput: { color: colors.text, flex: 1, fontSize: 16, fontWeight: '900', minWidth: 0, padding: 0 },
     categoryNameLocked: { color: colors.text },
     removeButton: { alignItems: 'center', backgroundColor: colors.expenseSoft, borderRadius: 999, height: 34, justifyContent: 'center', width: 34 },
@@ -190,13 +229,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     amountPreview: { color: colors.textMuted, fontWeight: '800', minWidth: 96, textAlign: 'right' },
     customCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 10, padding: spacing.md },
     customTitle: { color: colors.text, fontWeight: '900' },
-    quickEmojis: { flexDirection: 'row', flexWrap: 'wrap', gap: 7 },
-    emojiChip: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: 1, height: 34, justifyContent: 'center', width: 34 },
-    emojiChipSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder },
-    emojiText: { fontSize: 18 },
     customRow: { alignItems: 'center', flexDirection: 'row', gap: 8 },
-    emojiInput: { backgroundColor: colors.input, borderColor: colors.border, borderRadius: 14, borderWidth: 1, color: colors.text, fontSize: 18, minHeight: 46, paddingHorizontal: 10, textAlign: 'center', width: 56 },
     customNameInput: { backgroundColor: colors.input, borderColor: colors.border, borderRadius: 14, borderWidth: 1, color: colors.text, flex: 1, minHeight: 46, paddingHorizontal: 12 },
+    customHint: { color: colors.textMuted, fontSize: 12, fontWeight: '700', lineHeight: 17 },
     addButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 999, height: 46, justifyContent: 'center', width: 46 },
     pressed: { opacity: 0.82 },
   });
