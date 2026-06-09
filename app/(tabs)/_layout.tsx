@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Home, ReceiptText, Settings, type LucideIcon } from 'lucide-react-native';
 import { StyleSheet, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { HeaderAvatar, HeaderBell, HeaderBrand } from '../../src/components/AppHeader';
 import { ExpenseSheetProvider, useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { useAppTheme } from '../../src/theme/ThemeContext';
 
@@ -21,7 +22,11 @@ function TabsNavigator() {
       screenOptions={{
         headerStyle: { backgroundColor: colors.background },
         headerTintColor: colors.text,
-        headerTitleStyle: { fontWeight: '700' },
+        headerTitle: () => <HeaderBrand />,
+        headerTitleAlign: 'center',
+        headerLeft: () => <HeaderAvatar />,
+        headerRight: () => <HeaderBell />,
+        headerShadowVisible: false,
         sceneStyle: { backgroundColor: colors.background },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
@@ -40,7 +45,6 @@ function TabsNavigator() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Dashboard',
           tabBarLabel: 'Home',
           tabBarIcon: ({ color }) => <TabIcon Icon={Home} color={color} />,
         }}
@@ -48,7 +52,6 @@ function TabsNavigator() {
       <Tabs.Screen
         name="expenses/index"
         options={{
-          title: 'Expenses',
           tabBarLabel: 'Expenses',
           tabBarIcon: ({ color }) => <TabIcon Icon={ReceiptText} color={color} />,
         }}
@@ -56,7 +59,6 @@ function TabsNavigator() {
       <Tabs.Screen
         name="settings"
         options={{
-          title: 'Settings',
           tabBarLabel: 'Settings',
           tabBarIcon: ({ color }) => <TabIcon Icon={Settings} color={color} />,
         }}

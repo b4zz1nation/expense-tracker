@@ -8,6 +8,7 @@ import { Screen } from '../src/components/Screen';
 import { getPreferredCurrencyCode } from '../src/db/settingsRepo';
 import { useProfile } from '../src/hooks/useProfile';
 import { formatCents, parseMoneyToCents } from '../src/lib/currency';
+import { BRAND_FONT_FAMILY } from '../src/theme/fonts';
 import { useAppTheme } from '../src/theme/ThemeContext';
 
 export default function ProfileScreen() {
@@ -129,7 +130,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     profileIcon: { alignItems: 'center', backgroundColor: colors.primarySoft, borderRadius: 22, height: 64, justifyContent: 'center', width: 64 },
     headerText: { flex: 1, gap: 3 },
     eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 0.7, textTransform: 'uppercase' },
-    title: { color: colors.text, fontSize: 24, fontWeight: '900' },
+    title: { color: colors.text, fontFamily: BRAND_FONT_FAMILY, fontSize: 24, lineHeight: 30 },
     subtitle: { color: colors.textMuted, fontSize: 13, fontWeight: '600', lineHeight: 19 },
     formCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, gap: spacing.md, padding: spacing.card },
     fieldGroup: { gap: 8 },

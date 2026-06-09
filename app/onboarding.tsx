@@ -8,6 +8,7 @@ import { CategoryIcon } from '../src/components/CategoryIcon';
 import { saveUserProfile, setPreferredCurrencyCode } from '../src/db/settingsRepo';
 import { getCurrencyOption, getCurrencyOptions, getDeviceDefaultCurrencyCode, DEFAULT_CURRENCY_CODE, type CurrencyOption } from '../src/lib/currencies';
 import { parseMoneyToCents } from '../src/lib/currency';
+import { BRAND_FONT_FAMILY } from '../src/theme/fonts';
 import { useAppTheme } from '../src/theme/ThemeContext';
 
 const TOTAL_STEPS = 4;
@@ -377,8 +378,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme'], bottomInse
     logoImage: { height: 116, resizeMode: 'contain', width: 116 },
     floatingIconPrimary: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, bottom: -3, height: 34, justifyContent: 'center', position: 'absolute', right: -8, width: 34 },
     smallIconBubble: { alignItems: 'center', backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 24, borderWidth: StyleSheet.hairlineWidth, height: 66, justifyContent: 'center', marginBottom: 4, width: 66 },
-    eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '900', letterSpacing: 0.8, textAlign: 'center', textTransform: 'uppercase' },
-    title: { color: colors.text, fontSize: theme.isCompact ? 28 : 32, fontWeight: '900', letterSpacing: -0.8, lineHeight: theme.isCompact ? 32 : 36, textAlign: 'center' },
+    eyebrow: { color: colors.primary, fontFamily: BRAND_FONT_FAMILY, fontSize: 14, letterSpacing: 0.2, textAlign: 'center' },
+    title: { color: colors.text, fontFamily: BRAND_FONT_FAMILY, fontSize: theme.isCompact ? 28 : 32, letterSpacing: -0.8, lineHeight: theme.isCompact ? 34 : 39, textAlign: 'center' },
     subtitle: { color: colors.textMuted, fontSize: 15, fontWeight: '600', lineHeight: 22, maxWidth: 330, textAlign: 'center' },
     featureRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center', marginTop: 4 },
     featurePill: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 6, paddingHorizontal: 11, paddingVertical: 8 },

@@ -9,6 +9,7 @@ const SETTINGS_KEYS = {
   preferredCurrency: 'preferred_currency',
   themeMode: 'theme_mode',
   userName: 'user_name',
+  userPhotoUri: 'user_photo_uri',
   monthlyBudgetCents: 'monthly_budget_cents',
   onboardingComplete: 'onboarding_complete',
 } as const;
@@ -74,13 +75,15 @@ export async function setThemeModeSetting(mode: ThemeMode): Promise<void> {
 
 export type UserProfile = {
   name: string;
+  photoUri?: string;
   monthlyBudgetCents: number;
   onboardingComplete: boolean;
 };
 
 export async function getUserProfile(): Promise<UserProfile | null> {
-  const [name, monthlyBudget, onboardingComplete] = await Promise.all([
+  const [name, photoUri, monthlyBudget, onboardingComplete] = await Promise.all([
     getSetting(SETTINGS_KEYS.userName),
+    getSetting(SETTINGS_KEYS.userPhotoUri),
     getSetting(SETTINGS_KEYS.monthlyBudgetCents),
     getSetting(SETTINGS_KEYS.onboardingComplete),
   ]);
@@ -90,6 +93,7 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   }
   return {
     name: name.trim(),
+    photoUri: photoUri?.trim() || undefined,
     monthlyBudgetCents: budgetCents,
     onboardingComplete: true,
   };
@@ -108,6 +112,7 @@ export async function saveUserProfile(name: string, monthlyBudgetCents: number):
 
   return {
     name: trimmedName,
+    photoUri: (await getSetting(SETTINGS_KEYS.userPhotoUri))?.trim() || undefined,
     monthlyBudgetCents,
     onboardingComplete: true,
   };
