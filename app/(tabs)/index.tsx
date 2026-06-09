@@ -1,5 +1,5 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
-import { CalendarCheck, Clock3, X } from 'lucide-react-native';
+import { CalendarCheck, X } from 'lucide-react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -34,12 +34,10 @@ export default function DashboardScreen() {
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
-  const { expenses, recentExpenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
+  const { expenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
-  const recentSheetRef = useRef<BottomSheetModal>(null);
   const sheetSnapPoints = useMemo(() => ['68%', '96%'], []);
-  const recentSheetSnapPoints = useMemo(() => ['70%', '96%'], []);
   const sheetBottomInset = Math.max(insets.bottom, 12);
 
   useFocusEffect(
@@ -94,15 +92,6 @@ export default function DashboardScreen() {
     expenseSheetRef.current?.dismiss();
   };
 
-  const openRecentActivitySheet = () => {
-    setSheetOpen(true);
-    recentSheetRef.current?.present();
-  };
-
-  const handleRecentSheetDismiss = useCallback(() => {
-    setSheetOpen(false);
-  }, [setSheetOpen]);
-
   const categorySummaries = useMemo(() => {
     const breakdownById = new Map(categoryBreakdown.map((item) => [item.categoryId, item]));
     return CATEGORIES.map((category) => {
@@ -119,7 +108,6 @@ export default function DashboardScreen() {
   }, [categoryBreakdown, monthlyTotal]);
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0);
-  const latestDashboardExpenses = recentExpenses.slice(0, 4);
   const viewPreviewExpenses = expenses.slice(0, 3);
   const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
   const remainingBudgetCents = activeBudgetCents - monthlyTotal;
@@ -153,7 +141,6 @@ export default function DashboardScreen() {
           </View>
         ) : null}
       </View>
-      <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       {loading ? <ActivityIndicator /> : null}
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -179,31 +166,7 @@ export default function DashboardScreen() {
         )}
       </View>
 
-      <View style={[styles.section, styles.recentSection]}>
-        <View style={styles.sectionHeader}>
-          <View style={styles.sectionTitleRow}>
-            <View style={styles.sectionIconBubbleMuted}>
-              <Clock3 color={colors.textMuted} size={18} strokeWidth={2.5} />
-            </View>
-            <View>
-              <Text style={styles.sectionTitle}>Recent activity</Text>
-              <Text style={styles.sectionSubtitle}>Latest activity in {dateFilterLabel(dateFilter)}</Text>
-            </View>
-          </View>
-          {expenses.length > latestDashboardExpenses.length ? (
-            <Pressable onPress={openRecentActivitySheet} accessibilityRole="button" style={styles.sectionAction}>
-              <Text style={styles.sectionActionText}>See All</Text>
-            </Pressable>
-          ) : null}
-        </View>
-        {latestDashboardExpenses.length === 0 ? (
-          <EmptyState title="No recent activity" message="Add your first expense to start tracking." actionLabel="Add Expense" onAction={() => router.push('/expenses/new')} />
-        ) : (
-          latestDashboardExpenses.map((expense) => (
-            <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} onPress={() => openExpenseSheet(expense)} />
-          ))
-        )}
-      </View>
+      <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       <View style={[styles.section, styles.breakdownSection]}>
         <View style={styles.sectionHeader}>
@@ -311,49 +274,6 @@ export default function DashboardScreen() {
         </BottomSheetModal>
       ) : null}
 
-      <BottomSheetModal
-        ref={recentSheetRef}
-        index={0}
-        snapPoints={recentSheetSnapPoints}
-        backdropComponent={renderSheetBackdrop}
-        onDismiss={handleRecentSheetDismiss}
-        enablePanDownToClose
-        handleIndicatorStyle={styles.sheetHandleIndicator}
-        handleStyle={styles.sheetHandle}
-        backgroundStyle={styles.sheetBackground}
-        enableContentPanningGesture={false}
-        enableOverDrag
-        animateOnMount
-      >
-        <BottomSheetScrollView
-          showsVerticalScrollIndicator={false}
-          nestedScrollEnabled
-          overScrollMode="always"
-          bounces
-          alwaysBounceVertical
-          contentContainerStyle={[styles.sheetContent, { paddingBottom: 20 + sheetBottomInset }]}
-        >
-          <View style={styles.sheetHeader}>
-            <View style={styles.sheetHeaderText}>
-              <Text style={styles.sheetTotalLabel}>Recent Activity</Text>
-              <Text style={styles.sheetTitle}>{dateFilterLabel(dateFilter)}</Text>
-              <Text style={styles.modalSubtitle}>All expenses in the selected view, newest first.</Text>
-            </View>
-            <Pressable onPress={() => recentSheetRef.current?.dismiss()} accessibilityRole="button" accessibilityLabel="Close recent activity" style={styles.closeButton}>
-              <X color={colors.textMuted} size={20} strokeWidth={2.6} />
-            </Pressable>
-          </View>
-
-          {expenses.length === 0 ? (
-            <EmptyState title="No recent activity" message="Add an expense or choose another date." />
-          ) : (
-            expenses.map((expense) => (
-              <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} onPress={() => { recentSheetRef.current?.dismiss(); openExpenseSheet(expense); }} />
-            ))
-          )}
-        </BottomSheetScrollView>
-      </BottomSheetModal>
-
       <Modal visible={categoryModalOpen} transparent animationType="fade" onRequestClose={() => setCategoryModalOpen(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setCategoryModalOpen(false)} />
@@ -431,12 +351,11 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   summaryRow: { flexDirection: 'row', gap: 10 },
   section: { gap: 10 },
   daySection: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card },
-  recentSection: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card },
   breakdownSection: { marginBottom: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   sectionTitleRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10 },
   sectionIconBubble: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.primarySoftBorder, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 38, justifyContent: 'center', width: 38 },
-  sectionIconBubbleMuted: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 38, justifyContent: 'center', width: 38 },
+
   sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   sectionSubtitle: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginTop: 2 },
   sectionAction: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primarySoft },
