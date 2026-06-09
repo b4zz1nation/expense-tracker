@@ -70,31 +70,11 @@ export function dateFilterHelper(filter: DateFilter): string {
 export function dateFilterExpensesTitle(filter: DateFilter): string {
   if (filter.mode === 'day') return 'Day view expenses';
   if (filter.mode === 'month') return 'Month view expenses';
-  if (filter.mode === 'range90') return '90-day view expenses';
-  if (filter.mode === 'rangeYear') return '1-year view expenses';
-  return 'Year view expenses';
-}
-
-export function dateFilterBudgetMultiplier(filter: DateFilter): number {
-  if (filter.mode === 'month') return 1;
-  if (filter.mode === 'year') return 12;
+  if (filter.mode === 'year') return 'Year view expenses';
 
   const range = dateFilterToRange(filter);
-  return budgetMultiplierForDateRange(range.startDate, range.endDate);
-}
-
-export function budgetForDateFilter(monthlyBudgetCents: number, filter: DateFilter): number {
-  return Math.round(monthlyBudgetCents * dateFilterBudgetMultiplier(filter));
-}
-
-export function dateFilterBudgetLabel(filter: DateFilter): string {
-  if (filter.mode === 'day') return 'Daily budget';
-  if (filter.mode === 'month') return 'Monthly budget';
-  if (filter.mode === 'range90') return '90-day span budget';
-  if (filter.mode === 'rangeYear') return '1-year span budget';
-  if (filter.mode === 'year') return 'Yearly budget · monthly × 12';
-
-  return 'Budget';
+  const dayCount = daysBetween(range.startDate, range.endDate) + 1;
+  return `${dayCount}-day view expenses`;
 }
 
 export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
@@ -158,24 +138,6 @@ function daysBetween(startDate: string, endDate: string): number {
   const start = parseDate(startDate).getTime();
   const end = parseDate(endDate).getTime();
   return Math.round((end - start) / 86_400_000);
-}
-
-function budgetMultiplierForDateRange(startDate: string, endDate: string): number {
-  const normalized = normalizeRange(startDate, endDate);
-  let cursor = normalized.startDate;
-  let multiplier = 0;
-
-  while (cursor <= normalized.endDate) {
-    multiplier += 1 / daysInMonth(cursor);
-    cursor = addDays(cursor, 1);
-  }
-
-  return multiplier;
-}
-
-function daysInMonth(dateString: string): number {
-  const [year, month] = dateString.split('-').map(Number);
-  return new Date(year, month, 0).getDate();
 }
 
 function addYears(dateString: string, years: number): string {

@@ -1,6 +1,6 @@
 import { Search, X } from 'lucide-react-native';
 import { memo, useMemo, useState } from 'react';
-import { FlatList, Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { OPENMOJI_EMOJIS, type OpenMojiEmoji } from '../data/openMojiEmoji';
 import { useAppTheme } from '../theme/ThemeContext';
 
@@ -49,8 +49,8 @@ export function OpenMojiEmojiPicker({ visible, selectedEmoji, title = 'Choose em
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.overlay}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.overlay}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={styles.sheet}>
           <View style={styles.handle} />
@@ -94,7 +94,7 @@ export function OpenMojiEmojiPicker({ visible, selectedEmoji, title = 'Choose em
             )}
           />
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

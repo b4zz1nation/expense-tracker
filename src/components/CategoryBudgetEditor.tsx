@@ -13,6 +13,8 @@ type Props = {
   categories: BudgetCategory[];
   currencyCode: string;
   onChange: (categories: BudgetCategory[]) => void;
+  editable?: boolean;
+  showDefaultCategories?: boolean;
 };
 
 function centsToInput(cents: number): string {
@@ -28,7 +30,7 @@ function parseBudgetInput(value: string): number {
   return Number.isSafeInteger(cents) && cents >= 0 ? cents : 0;
 }
 
-export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Props) {
+export function CategoryBudgetEditor({ categories, currencyCode, onChange, editable = true, showDefaultCategories = true }: Props) {
   const { theme } = useAppTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { colors } = theme;
@@ -106,93 +108,105 @@ export function CategoryBudgetEditor({ categories, currencyCode, onChange }: Pro
         <Text style={styles.totalValue}>{formatCents(totalBudget, currencyCode)}</Text>
       </View>
 
-      <View style={styles.defaultChips}>
-        {DEFAULT_BUDGET_CATEGORIES.map((category) => {
-          const selected = enabledIds.has(category.id);
-          const currentCategory = categories.find((entry) => entry.id === category.id) ?? category;
-          return (
-            <Pressable
-              key={category.id}
-              accessibilityRole="button"
-              accessibilityState={{ selected }}
-              onPress={() => toggleDefaultCategory(category)}
-              style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
-            >
-              <Text style={styles.chipEmoji}>{currentCategory.emoji}</Text>
-              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{category.name}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {showDefaultCategories ? (
+        <View style={styles.defaultChips}>
+          {DEFAULT_BUDGET_CATEGORIES.map((category) => {
+            const selected = enabledIds.has(category.id);
+            const currentCategory = categories.find((entry) => entry.id === category.id) ?? category;
+            return (
+              <Pressable
+                key={category.id}
+                accessibilityRole="button"
+                accessibilityState={{ selected }}
+                onPress={() => toggleDefaultCategory(category)}
+                style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
+              >
+                <Text style={styles.chipEmoji}>{currentCategory.emoji}</Text>
+                <Text style={[styles.chipText, selected && styles.chipTextSelected]}>{category.name}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      ) : null}
 
       <View style={styles.list}>
         {categories.map((category) => (
-          <View key={category.id} style={styles.categoryCard}>
-            <View style={styles.categoryHeader}>
-              <View style={styles.categoryTitleRow}>
+          editable ? (
+            <View key={category.id} style={styles.categoryCard}>
+              <View style={styles.categoryHeader}>
+                <View style={styles.categoryTitleRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`Choose emoji for ${category.name}`}
+                    onPress={() => setEmojiPickerCategoryId(category.id)}
+                    style={({ pressed }) => [styles.categoryEmojiButton, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  </Pressable>
+                  <TextInput
+                    value={category.name}
+                    editable={!category.isDefault}
+                    onChangeText={(name) => updateCategory(category.id, { name })}
+                    style={[styles.categoryNameInput, category.isDefault && styles.categoryNameLocked]}
+                    placeholder="Category"
+                    placeholderTextColor={colors.textMuted}
+                  />
+                </View>
                 <Pressable
                   accessibilityRole="button"
-                  accessibilityLabel={`Choose emoji for ${category.name}`}
-                  onPress={() => setEmojiPickerCategoryId(category.id)}
-                  style={({ pressed }) => [styles.categoryEmojiButton, pressed && styles.pressed]}
+                  accessibilityLabel={`Remove ${category.name}`}
+                  onPress={() => removeCategory(category.id)}
+                  style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}
                 >
-                  <Text style={styles.categoryEmoji}>{category.emoji}</Text>
+                  <Trash2 color={colors.expense} size={17} strokeWidth={2.5} />
                 </Pressable>
-                <TextInput
-                  value={category.name}
-                  editable={!category.isDefault}
-                  onChangeText={(name) => updateCategory(category.id, { name })}
-                  style={[styles.categoryNameInput, category.isDefault && styles.categoryNameLocked]}
-                  placeholder="Category"
-                  placeholderTextColor={colors.textMuted}
-                />
               </View>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${category.name}`}
-                onPress={() => removeCategory(category.id)}
-                style={({ pressed }) => [styles.removeButton, pressed && styles.pressed]}
-              >
-                <Trash2 color={colors.expense} size={17} strokeWidth={2.5} />
-              </Pressable>
+              <View style={styles.amountRow}>
+                <TextInput
+                  keyboardType="decimal-pad"
+                  value={amountInputs[category.id] ?? ''}
+                  onChangeText={(value) => updateBudgetInput(category.id, value)}
+                  onBlur={() => blurBudgetInput(category)}
+                  placeholder="0.00"
+                  placeholderTextColor={colors.textMuted}
+                  selectionColor={colors.primary}
+                  style={styles.amountInput}
+                />
+                <Text style={styles.amountPreview}>{formatCents(category.budgetCents, currencyCode)}</Text>
+              </View>
             </View>
-            <View style={styles.amountRow}>
-              <TextInput
-                keyboardType="decimal-pad"
-                value={amountInputs[category.id] ?? ''}
-                onChangeText={(value) => updateBudgetInput(category.id, value)}
-                onBlur={() => blurBudgetInput(category)}
-                placeholder="0.00"
-                placeholderTextColor={colors.textMuted}
-                selectionColor={colors.primary}
-                style={styles.amountInput}
-              />
-              <Text style={styles.amountPreview}>{formatCents(category.budgetCents, currencyCode)}</Text>
+          ) : (
+            <View key={category.id} style={styles.readOnlyCategoryCard}>
+              <Text style={styles.readOnlyEmoji}>{category.emoji}</Text>
+              <Text style={styles.readOnlyName} numberOfLines={1}>{category.name}</Text>
+              <Text style={styles.readOnlyAmount}>{formatCents(category.budgetCents, currencyCode)}</Text>
             </View>
-          </View>
+          )
         ))}
       </View>
 
-      <View style={styles.customCard}>
-        <Text style={styles.customTitle}>Add custom category</Text>
-        <View style={styles.customRow}>
-          <TextInput
-            value={customName}
-            onChangeText={setCustomName}
-            style={styles.customNameInput}
-            placeholder="Category name"
-            placeholderTextColor={colors.textMuted}
-            selectionColor={colors.primary}
-          />
-          <Pressable onPress={addCustomCategory} style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
-            <Plus color={colors.onPrimary} size={20} strokeWidth={2.7} />
-          </Pressable>
+      {editable ? (
+        <View style={styles.customCard}>
+          <Text style={styles.customTitle}>Add custom category</Text>
+          <View style={styles.customRow}>
+            <TextInput
+              value={customName}
+              onChangeText={setCustomName}
+              style={styles.customNameInput}
+              placeholder="Category name"
+              placeholderTextColor={colors.textMuted}
+              selectionColor={colors.primary}
+            />
+            <Pressable onPress={addCustomCategory} style={({ pressed }) => [styles.addButton, pressed && styles.pressed]}>
+              <Plus color={colors.onPrimary} size={20} strokeWidth={2.7} />
+            </Pressable>
+          </View>
+          <Text style={styles.customHint}>New custom categories start with ✨. Tap the emoji on the category row to choose from the full OpenMoji set.</Text>
         </View>
-        <Text style={styles.customHint}>New custom categories start with ✨. Tap the emoji on the category row to choose from the full OpenMoji set.</Text>
-      </View>
+      ) : null}
 
       <OpenMojiEmojiPicker
-        visible={emojiPickerCategoryId !== null}
+        visible={editable && emojiPickerCategoryId !== null}
         selectedEmoji={emojiPickerCategory?.emoji}
         title={emojiPickerCategory ? `Choose ${emojiPickerCategory.name} emoji` : 'Choose emoji'}
         onClose={() => setEmojiPickerCategoryId(null)}
@@ -217,6 +231,10 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
     chipTextSelected: { color: colors.primary },
     list: { gap: 10 },
     categoryCard: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 10, padding: spacing.md },
+    readOnlyCategoryCard: { alignItems: 'center', backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, flexDirection: 'row', gap: 10, paddingHorizontal: spacing.md, paddingVertical: 13 },
+    readOnlyEmoji: { fontSize: 22, lineHeight: 28 },
+    readOnlyName: { color: colors.text, flex: 1, fontSize: 16, fontWeight: '900' },
+    readOnlyAmount: { color: colors.text, fontSize: 15, fontWeight: '900' },
     categoryHeader: { alignItems: 'center', flexDirection: 'row', gap: 10, justifyContent: 'space-between' },
     categoryTitleRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10, minWidth: 0 },
     categoryEmojiButton: { alignItems: 'center', backgroundColor: colors.surfaceAlt, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 38, justifyContent: 'center', width: 38 },

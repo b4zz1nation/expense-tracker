@@ -1,9 +1,6 @@
 import {
-  budgetForDateFilter,
   clampRangeToOneYear,
   createDefaultDateFilter,
-  dateFilterBudgetMultiplier,
-  dateFilterBudgetLabel,
   dateFilterExpensesTitle,
   dateFilterHelper,
   dateFilterLabel,
@@ -46,24 +43,7 @@ describe('date filter utilities', () => {
     expect(dateFilterExpensesTitle({ mode: 'day', date: '2026-06-02' })).toBe('Day view expenses');
     expect(dateFilterExpensesTitle({ mode: 'month', month: '2026-06' })).toBe('Month view expenses');
     expect(dateFilterExpensesTitle({ mode: 'range90', startDate: '2026-06-02' })).toBe('90-day view expenses');
-    expect(dateFilterExpensesTitle({ mode: 'rangeYear', startDate: '2026-06-02' })).toBe('1-year view expenses');
+    expect(dateFilterExpensesTitle({ mode: 'rangeYear', startDate: '2026-06-02' })).toBe('365-day view expenses');
     expect(dateFilterExpensesTitle({ mode: 'year', year: 2026 })).toBe('Year view expenses');
-  });
-
-  it('scales monthly budget by selected calendar span', () => {
-    expect(dateFilterBudgetMultiplier({ mode: 'day', date: '2026-06-15' })).toBeCloseTo(1 / 30);
-    expect(dateFilterBudgetMultiplier({ mode: 'month', month: '2026-06' })).toBe(1);
-    expect(dateFilterBudgetMultiplier({ mode: 'range90', startDate: '2026-01-01' })).toBeCloseTo(3);
-    expect(dateFilterBudgetMultiplier({ mode: 'rangeYear', startDate: '2026-01-01' })).toBeCloseTo(12);
-    expect(dateFilterBudgetMultiplier({ mode: 'year', year: 2026 })).toBe(12);
-    expect(budgetForDateFilter(100_00, { mode: 'year', year: 2026 })).toBe(1200_00);
-  });
-
-  it('uses daily budget for day view and explicit labels for spans', () => {
-    expect(budgetForDateFilter(3000, { mode: 'day', date: '2026-06-15' })).toBe(100);
-    expect(budgetForDateFilter(3100, { mode: 'day', date: '2026-01-15' })).toBe(100);
-    expect(dateFilterBudgetLabel({ mode: 'day', date: '2026-06-15' })).toBe('Daily budget');
-    expect(dateFilterBudgetLabel({ mode: 'range90', startDate: '2026-06-15' })).toBe('90-day span budget');
-    expect(dateFilterBudgetLabel({ mode: 'rangeYear', startDate: '2026-06-15' })).toBe('1-year span budget');
   });
 });

@@ -4,15 +4,16 @@ import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { EmptyState } from '../../../src/components/EmptyState';
 import { ExpenseItem } from '../../../src/components/ExpenseItem';
-import { MiniStatCard } from '../../../src/components/MiniStatCard';
 import { Screen } from '../../../src/components/Screen';
+import { TotalBudgetCard } from '../../../src/components/TotalBudgetCard';
 import { CategoryIcon } from '../../../src/components/CategoryIcon';
 import { formatCents } from '../../../src/lib/currency';
 import { DateFilterSelector } from '../../../src/components/DateFilterSelector';
-import { budgetForDateFilter, createDefaultDateFilter, dateFilterBudgetLabel, dateFilterLabel } from '../../../src/lib/dateFilter';
+import { createDefaultDateFilter } from '../../../src/lib/dateFilter';
 import { useExpenses } from '../../../src/hooks/useExpenses';
 import { useProfile } from '../../../src/hooks/useProfile';
 import { getPreferredCurrencyCode } from '../../../src/db/settingsRepo';
+import { getTotalExpenses } from '../../../src/db/expensesRepo';
 import { getBudgetCategory } from '../../../src/lib/categoryBudgets';
 import { useAppTheme } from '../../../src/theme/ThemeContext';
 
@@ -23,19 +24,19 @@ export default function ExpensesScreen() {
   const { colors } = theme;
   const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
-  const { expenses, loading, error, refresh, monthlyTotal, categoryBreakdown } = useExpenses(dateFilter);
+  const [totalExpenseCents, setTotalExpenseCents] = useState(0);
+  const { expenses, loading, error, refresh, categoryBreakdown } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const categories = profile?.categoryBudgets ?? [];
 
   useFocusEffect(useCallback(() => {
     void refresh();
     void refreshProfile();
+    void getTotalExpenses().then(setTotalExpenseCents).catch(() => setTotalExpenseCents(0));
     void (async () => setDisplayCurrencyCode(await getPreferredCurrencyCode()))();
   }, [refresh, refreshProfile]));
 
-  const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
-  const remainingBudgetCents = activeBudgetCents - monthlyTotal;
-  const isOverBudget = profile ? remainingBudgetCents < 0 : false;
+  const totalBudgetCents = profile?.monthlyBudgetCents ?? 0;
 
   const groupedCategories = useMemo(() => {
     const spentById = new Map(categoryBreakdown.map((item) => [item.categoryId, item]));
@@ -49,17 +50,16 @@ export default function ExpensesScreen() {
     return Array.from(ids).map((id) => {
       const category = getBudgetCategory(categories, id);
       const spent = spentById.get(id)?.amountCents ?? 0;
-      const periodBudget = budgetForDateFilter(category.budgetCents, dateFilter);
+      const periodBudget = category.budgetCents;
       return { category, expenses: expenseByCategory.get(id) ?? [], spent, budget: periodBudget, remaining: periodBudget - spent };
     }).sort((a, b) => b.spent - a.spent || b.budget - a.budget);
-  }, [categories, categoryBreakdown, dateFilter, expenses]);
+  }, [categories, categoryBreakdown, expenses]);
 
   return (
     <Screen>
       <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
       <View style={styles.summaryStack}>
-        <MiniStatCard label="Total" value={formatCents(monthlyTotal, displayCurrencyCode)} helper={dateFilterLabel(dateFilter)} tone="primary" />
-        {profile ? <View style={styles.summaryRow}><MiniStatCard label="Budget" value={formatCents(activeBudgetCents, displayCurrencyCode)} helper={dateFilterBudgetLabel(dateFilter)} tone="income" /><MiniStatCard label={isOverBudget ? 'Over budget' : 'Remaining'} value={formatCents(Math.abs(remainingBudgetCents), displayCurrencyCode)} helper={dateFilterLabel(dateFilter)} tone={isOverBudget ? 'expense' : 'warning'} /></View> : null}
+        <TotalBudgetCard spentCents={totalExpenseCents} budgetCents={totalBudgetCents} currencyCode={displayCurrencyCode} />
       </View>
 
       {loading ? <ActivityIndicator /> : null}

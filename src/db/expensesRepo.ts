@@ -293,6 +293,16 @@ export async function getTotalForRange(range: DateRange): Promise<number> {
   return row?.total ?? 0;
 }
 
+export async function getTotalExpenses(): Promise<number> {
+  await initDb();
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ total: number }>(
+    `SELECT COALESCE(SUM(amount_cents), 0) as total FROM expenses
+     WHERE deleted_at IS NULL`,
+  );
+  return row?.total ?? 0;
+}
+
 export async function getCategoryBreakdown(month: string): Promise<CategoryBreakdown[]> {
   await initDb();
   const db = await getDatabase();

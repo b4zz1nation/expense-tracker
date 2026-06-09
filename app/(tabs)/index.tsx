@@ -7,15 +7,16 @@ import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ExpenseItem } from '../../src/components/ExpenseItem';
-import { MiniStatCard } from '../../src/components/MiniStatCard';
 import { Screen } from '../../src/components/Screen';
+import { TotalBudgetCard } from '../../src/components/TotalBudgetCard';
 import { CategoryIcon } from '../../src/components/CategoryIcon';
 import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { getBudgetCategory } from '../../src/lib/categoryBudgets';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
+import { getTotalExpenses } from '../../src/db/expensesRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
-import { budgetForDateFilter, createDefaultDateFilter, dateFilterBudgetLabel, dateFilterExpensesTitle, dateFilterLabel } from '../../src/lib/dateFilter';
+import { createDefaultDateFilter, dateFilterExpensesTitle, dateFilterLabel } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useAppTheme } from '../../src/theme/ThemeContext';
@@ -34,6 +35,7 @@ export default function DashboardScreen() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
+  const [totalExpenseCents, setTotalExpenseCents] = useState(0);
   const { expenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
@@ -44,6 +46,7 @@ export default function DashboardScreen() {
     useCallback(() => {
       void refresh();
       void refreshProfile();
+      void getTotalExpenses().then(setTotalExpenseCents).catch(() => setTotalExpenseCents(0));
     }, [refresh, refreshProfile])
   );
 
@@ -100,45 +103,22 @@ export default function DashboardScreen() {
       const category = getBudgetCategory(budgetCategories, id);
       const breakdown = breakdownById.get(id);
       const amountCents = breakdown?.amountCents ?? 0;
-      const periodBudget = budgetForDateFilter(category.budgetCents, dateFilter);
+      const periodBudget = category.budgetCents;
       const percent = periodBudget > 0 ? Math.min(100, Math.round((amountCents / periodBudget) * 100)) : 0;
       return { ...category, amountCents, budgetCents: periodBudget, remainingCents: periodBudget - amountCents, percent, count: breakdown?.count ?? 0 };
     }).sort((a, b) => b.amountCents - a.amountCents || b.budgetCents - a.budgetCents);
-  }, [budgetCategories, categoryBreakdown, dateFilter]);
+  }, [budgetCategories, categoryBreakdown]);
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0 || item.budgetCents > 0);
   const viewPreviewExpenses = expenses.slice(0, 3);
-  const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
-  const remainingBudgetCents = activeBudgetCents - monthlyTotal;
-  const isOverBudget = profile ? remainingBudgetCents < 0 : false;
+  const totalBudgetCents = profile?.monthlyBudgetCents ?? 0;
 
   return (
     <Screen>
       <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
 
       <View style={styles.summaryStack}>
-        <MiniStatCard
-          label="Total"
-          value={formatCents(monthlyTotal, displayCurrencyCode)}
-          helper={dateFilterLabel(dateFilter)}
-          tone="primary"
-        />
-        {profile ? (
-          <View style={styles.summaryRow}>
-            <MiniStatCard
-              label="Budget"
-              value={formatCents(activeBudgetCents, displayCurrencyCode)}
-              helper={dateFilterBudgetLabel(dateFilter)}
-              tone="income"
-            />
-            <MiniStatCard
-              label={isOverBudget ? 'Over budget' : 'Remaining'}
-              value={formatCents(Math.abs(remainingBudgetCents), displayCurrencyCode)}
-              helper={dateFilterLabel(dateFilter)}
-              tone={isOverBudget ? 'expense' : 'warning'}
-            />
-          </View>
-        ) : null}
+        <TotalBudgetCard spentCents={totalExpenseCents} budgetCents={totalBudgetCents} currencyCode={displayCurrencyCode} />
       </View>
 
       {loading ? <ActivityIndicator /> : null}
@@ -362,7 +342,7 @@ export default function DashboardScreen() {
                     <CategoryIcon categoryId={category.id} emoji={category.emoji} size={28} />
                     <View style={styles.breakdownTextBlock}>
                       <Text style={styles.breakdownLabel}>{category.name}</Text>
-                      <Text style={styles.breakdownMeta}>Budget {formatCents(budgetForDateFilter(category.budgetCents, dateFilter), displayCurrencyCode)}</Text>
+                      <Text style={styles.breakdownMeta}>Budget {formatCents(category.budgetCents, displayCurrencyCode)}</Text>
                     </View>
                   </View>
                   <Plus color={colors.primary} size={20} strokeWidth={2.7} />
