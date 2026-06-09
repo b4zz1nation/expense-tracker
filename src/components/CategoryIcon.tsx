@@ -1,3 +1,4 @@
+import { Text } from 'react-native';
 import { SvgXml } from 'react-native-svg';
 import type { CategoryId } from '../constants/categories';
 
@@ -15,10 +16,13 @@ const OPENMOJI_XML: Record<CategoryId, string> = {
 type CategoryIconProps = {
   categoryId: CategoryId;
   size?: number;
+  emoji?: string;
 };
 
-export function CategoryIcon({ categoryId, size = 22 }: CategoryIconProps) {
-  return <SvgXml xml={OPENMOJI_XML[categoryId]} width={size} height={size} />;
+export function CategoryIcon({ categoryId, size = 22, emoji = '🧾' }: CategoryIconProps) {
+  const xml = OPENMOJI_XML[categoryId];
+  if (xml) return <SvgXml xml={xml} width={size} height={size} />;
+  return <Text style={{ fontSize: size, lineHeight: size + 2 }}>{emoji}</Text>;
 }
 
 export function getCategoryOpenMojiXml(categoryId: CategoryId) {

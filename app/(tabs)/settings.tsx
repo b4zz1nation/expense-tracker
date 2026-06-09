@@ -213,8 +213,8 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.cardText}>
           <Text style={styles.sectionLabel}>Profile</Text>
-          <Text style={styles.title}>Name & Budget</Text>
-          <Text style={styles.subtitle} numberOfLines={1}>Edit your monthly plan</Text>
+          <Text style={styles.title}>Name & Category Budgets</Text>
+          <Text style={styles.subtitle} numberOfLines={1}>Edit categories and monthly amounts</Text>
         </View>
         <ChevronRight color={colors.textMuted} size={22} strokeWidth={2.4} />
       </Pressable>

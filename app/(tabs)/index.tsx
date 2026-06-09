@@ -11,7 +11,7 @@ import { MiniStatCard } from '../../src/components/MiniStatCard';
 import { Screen } from '../../src/components/Screen';
 import { CategoryIcon } from '../../src/components/CategoryIcon';
 import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
-import { CATEGORIES } from '../../src/constants/categories';
+import { getBudgetCategory } from '../../src/lib/categoryBudgets';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
@@ -32,6 +32,7 @@ export default function DashboardScreen() {
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
   const { expenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
@@ -91,22 +92,21 @@ export default function DashboardScreen() {
     expenseSheetRef.current?.dismiss();
   };
 
+  const budgetCategories = profile?.categoryBudgets ?? [];
   const categorySummaries = useMemo(() => {
     const breakdownById = new Map(categoryBreakdown.map((item) => [item.categoryId, item]));
-    return CATEGORIES.map((category) => {
-      const breakdown = breakdownById.get(category.id);
+    const ids = new Set([...budgetCategories.map((category) => category.id), ...categoryBreakdown.map((item) => item.categoryId)]);
+    return Array.from(ids).map((id) => {
+      const category = getBudgetCategory(budgetCategories, id);
+      const breakdown = breakdownById.get(id);
       const amountCents = breakdown?.amountCents ?? 0;
-      const percent = monthlyTotal > 0 ? Math.round((amountCents / monthlyTotal) * 100) : 0;
-      return {
-        ...category,
-        amountCents,
-        percent,
-        count: breakdown?.count ?? 0,
-      };
-    }).sort((a, b) => b.amountCents - a.amountCents);
-  }, [categoryBreakdown, monthlyTotal]);
+      const periodBudget = budgetForDateFilter(category.budgetCents, dateFilter);
+      const percent = periodBudget > 0 ? Math.min(100, Math.round((amountCents / periodBudget) * 100)) : 0;
+      return { ...category, amountCents, budgetCents: periodBudget, remainingCents: periodBudget - amountCents, percent, count: breakdown?.count ?? 0 };
+    }).sort((a, b) => b.amountCents - a.amountCents || b.budgetCents - a.budgetCents);
+  }, [budgetCategories, categoryBreakdown, dateFilter]);
 
-  const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0);
+  const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0 || item.budgetCents > 0);
   const viewPreviewExpenses = expenses.slice(0, 3);
   const activeBudgetCents = profile ? budgetForDateFilter(profile.monthlyBudgetCents, dateFilter) : 0;
   const remainingBudgetCents = activeBudgetCents - monthlyTotal;
@@ -155,7 +155,7 @@ export default function DashboardScreen() {
               <Text style={styles.sectionSubtitle}>{dateFilterLabel(dateFilter)} · {formatCents(monthlyTotal, displayCurrencyCode)}</Text>
             </View>
           </View>
-          <Pressable accessibilityRole="button" onPress={() => router.push('/expenses/new')} style={styles.compactAddButton}>
+          <Pressable accessibilityRole="button" onPress={() => setAddCategoryModalOpen(true)} style={styles.compactAddButton}>
             <Plus color={colors.onPrimary} size={14} strokeWidth={3} />
             <Text style={styles.compactAddButtonText}>Add</Text>
           </Pressable>
@@ -164,7 +164,7 @@ export default function DashboardScreen() {
           <EmptyState title="No expenses in this view" message="Use the arrows to move between periods, or tap Add for this selection." />
         ) : (
           viewPreviewExpenses.map((expense) => (
-            <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} onPress={() => openExpenseSheet(expense)} />
+            <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} categories={budgetCategories} onPress={() => openExpenseSheet(expense)} />
           ))
         )}
       </View>
@@ -324,10 +324,10 @@ export default function DashboardScreen() {
                     </AnimatedCircularProgress>
                     <View style={styles.breakdownTextBlock}>
                       <View style={styles.breakdownLabelRow}>
-                        <CategoryIcon categoryId={item.id} size={22} />
+                        <CategoryIcon categoryId={item.id} emoji={item.emoji} size={22} />
                         <Text style={styles.breakdownLabel}>{item.name}</Text>
                       </View>
-                      <Text style={styles.breakdownMeta}>{item.count} expense{item.count === 1 ? '' : 's'}</Text>
+                      <Text style={styles.breakdownMeta}>{formatCents(item.amountCents, displayCurrencyCode)} spent · {formatCents(item.remainingCents, displayCurrencyCode)} left</Text>
                     </View>
                   </View>
                   <View style={styles.modalAmountBlock}>
@@ -335,6 +335,38 @@ export default function DashboardScreen() {
                     <Text style={styles.modalPercent}>{item.percent}%</Text>
                   </View>
                 </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+
+      <Modal visible={addCategoryModalOpen} transparent animationType="fade" onRequestClose={() => setAddCategoryModalOpen(false)}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAddCategoryModalOpen(false)} />
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <View style={styles.modalHeaderText}>
+                <Text style={styles.modalTitle}>Choose category first</Text>
+                <Text style={styles.modalSubtitle}>Your expense will start with this category selected.</Text>
+              </View>
+              <Pressable onPress={() => setAddCategoryModalOpen(false)} accessibilityRole="button" style={styles.closeButton}>
+                <X color={colors.textMuted} size={20} strokeWidth={2.6} />
+              </Pressable>
+            </View>
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalListContent}>
+              {budgetCategories.map((category) => (
+                <Pressable key={category.id} style={styles.modalRow} onPress={() => { setAddCategoryModalOpen(false); router.push(`/expenses/new?categoryId=${encodeURIComponent(category.id)}`); }}>
+                  <View style={styles.modalLeft}>
+                    <CategoryIcon categoryId={category.id} emoji={category.emoji} size={28} />
+                    <View style={styles.breakdownTextBlock}>
+                      <Text style={styles.breakdownLabel}>{category.name}</Text>
+                      <Text style={styles.breakdownMeta}>Budget {formatCents(budgetForDateFilter(category.budgetCents, dateFilter), displayCurrencyCode)}</Text>
+                    </View>
+                  </View>
+                  <Plus color={colors.primary} size={20} strokeWidth={2.7} />
+                </Pressable>
               ))}
             </ScrollView>
           </View>

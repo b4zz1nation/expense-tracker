@@ -14,8 +14,8 @@ export function useProfile() {
     }
   }, []);
 
-  const updateProfile = useCallback(async (name: string, monthlyBudgetCents: number) => {
-    const nextProfile = await saveUserProfile(name, monthlyBudgetCents);
+  const updateProfile = useCallback(async (name: string, categoryBudgets: UserProfile['categoryBudgets']) => {
+    const nextProfile = await saveUserProfile(name, categoryBudgets);
     setProfile(nextProfile);
     return nextProfile;
   }, []);

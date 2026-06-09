@@ -4,25 +4,28 @@ import { CategoryIcon } from './CategoryIcon';
 import { formatCents } from '../lib/currency';
 import { formatDateLabel } from '../lib/dates';
 import { useAppTheme } from '../theme/ThemeContext';
+import type { BudgetCategory } from '../types/categoryBudget';
 import type { Expense } from '../types/expense';
 
 export function ExpenseItem({
   expense,
   currencyCode,
   onPress,
+  categories,
 }: {
   expense: Expense;
   currencyCode: string;
   onPress?: () => void;
+  categories?: BudgetCategory[];
 }) {
-  const category = getCategory(expense.categoryId);
+  const category = getCategory(expense.categoryId, categories);
   const { theme } = useAppTheme();
   const styles = createStyles(theme);
 
   return (
     <Pressable onPress={onPress} style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <View style={[styles.icon, { backgroundColor: `${category.color}${theme.isDark ? '33' : '22'}` }]}>
-        <CategoryIcon categoryId={category.id} size={26} />
+        <CategoryIcon categoryId={category.id} emoji={category.emoji} size={26} />
       </View>
       <View style={styles.body}>
         <Text style={styles.title} numberOfLines={1}>{expense.note || category.name}</Text>

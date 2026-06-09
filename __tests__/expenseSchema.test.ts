@@ -27,9 +27,13 @@ describe('expense schema', () => {
     expect(result.success).toBe(true);
   });
 
-  it('rejects invalid amount, category, date, and item labels', () => {
+  it('accepts custom category ids from category-budget setup', () => {
+    expect(expenseSchema.safeParse({ ...valid, categoryId: 'custom-pets-abc123' }).success).toBe(true);
+  });
+
+  it('rejects invalid amount, blank category, date, and item labels', () => {
     expect(expenseSchema.safeParse({ ...valid, items: [{ label: 'Burger', amount: '0' }] }).success).toBe(false);
-    expect(expenseSchema.safeParse({ ...valid, categoryId: 'invalid' }).success).toBe(false);
+    expect(expenseSchema.safeParse({ ...valid, categoryId: '' }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, spentOn: '2026-02-31' }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, items: [{ label: '', amount: '8.50' }] }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, items: [] }).success).toBe(false);

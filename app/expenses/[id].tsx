@@ -4,7 +4,9 @@ import { ActivityIndicator, Alert, Pressable, StyleSheet, Text } from 'react-nat
 import { ExpenseForm, type ExpenseFormHandle } from '../../src/components/ExpenseForm';
 import { Screen } from '../../src/components/Screen';
 import { deleteExpense, getExpense, updateExpense } from '../../src/db/expensesRepo';
+import { getUserProfile } from '../../src/db/settingsRepo';
 import { useAppTheme } from '../../src/theme/ThemeContext';
+import type { BudgetCategory } from '../../src/types/categoryBudget';
 import type { Expense, ExpenseFormValues } from '../../src/types/expense';
 
 export default function EditExpenseScreen() {
@@ -15,6 +17,7 @@ export default function EditExpenseScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const formRef = useRef<ExpenseFormHandle>(null);
   const [expense, setExpense] = useState<Expense | null>(null);
+  const [categories, setCategories] = useState<BudgetCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -23,8 +26,9 @@ export default function EditExpenseScreen() {
       if (!id) return;
       setLoading(true);
       try {
-        const found = await getExpense(id);
+        const [found, profile] = await Promise.all([getExpense(id), getUserProfile()]);
         setExpense(found);
+        setCategories(profile?.categoryBudgets ?? []);
         setError(found ? null : 'Expense not found.');
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Could not load expense.');
@@ -74,7 +78,7 @@ export default function EditExpenseScreen() {
 
   return (
     <Screen keyboardAware>
-      <ExpenseForm ref={formRef} initialExpense={expense} submitLabel="Save Changes" onSubmit={submit} onDelete={remove} showSubmitButton={false} metaFieldsLayout="row" currencyCode={expense.currency} />
+      <ExpenseForm ref={formRef} initialExpense={expense} submitLabel="Save Changes" onSubmit={submit} onDelete={remove} showSubmitButton={false} metaFieldsLayout="row" currencyCode={expense.currency} categories={categories} />
     </Screen>
   );
 }

@@ -1,15 +1,18 @@
 import { useFocusEffect } from 'expo-router';
-import { PiggyBank, UserRound, WalletCards } from 'lucide-react-native';
+import { UserRound, WalletCards } from 'lucide-react-native';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, StyleSheet, Text, TextInput, View } from 'react-native';
 import { AppButton } from '../src/components/AppButton';
+import { CategoryBudgetEditor } from '../src/components/CategoryBudgetEditor';
 import { CategoryIcon } from '../src/components/CategoryIcon';
 import { Screen } from '../src/components/Screen';
 import { getPreferredCurrencyCode } from '../src/db/settingsRepo';
 import { useProfile } from '../src/hooks/useProfile';
-import { formatCents, parseMoneyToCents } from '../src/lib/currency';
+import { DEFAULT_BUDGET_CATEGORIES, totalCategoryBudgetCents } from '../src/lib/categoryBudgets';
+import { formatCents } from '../src/lib/currency';
 import { BRAND_FONT_FAMILY } from '../src/theme/fonts';
 import { useAppTheme } from '../src/theme/ThemeContext';
+import type { BudgetCategory } from '../src/types/categoryBudget';
 
 export default function ProfileScreen() {
   const { theme } = useAppTheme();
@@ -17,7 +20,7 @@ export default function ProfileScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const { profile, loadingProfile, refreshProfile, updateProfile } = useProfile();
   const [name, setName] = useState('');
-  const [budget, setBudget] = useState('');
+  const [categoryBudgets, setCategoryBudgets] = useState<BudgetCategory[]>(DEFAULT_BUDGET_CATEGORIES);
   const [currencyCode, setCurrencyCode] = useState('PHP');
   const [saving, setSaving] = useState(false);
 
@@ -29,18 +32,17 @@ export default function ProfileScreen() {
   useEffect(() => {
     if (!profile) return;
     setName(profile.name);
-    setBudget(String((profile.monthlyBudgetCents / 100).toFixed(2)));
+    setCategoryBudgets(profile.categoryBudgets);
   }, [profile]);
 
-  const monthlyBudgetCents = profile?.monthlyBudgetCents ?? 0;
+  const monthlyBudgetCents = totalCategoryBudgetCents(categoryBudgets);
 
   const save = async () => {
     Keyboard.dismiss();
     setSaving(true);
     try {
-      const budgetCents = parseMoneyToCents(budget);
-      await updateProfile(name, budgetCents);
-      Alert.alert('Profile saved', 'Your name and monthly budget were updated.');
+      await updateProfile(name, categoryBudgets);
+      Alert.alert('Profile saved', 'Your category budgets were updated.');
     } catch (error) {
       Alert.alert('Could not save profile', error instanceof Error ? error.message : 'Please try again.');
     } finally {
@@ -52,12 +54,12 @@ export default function ProfileScreen() {
     <Screen keyboardAware>
       <View style={styles.headerCard}>
         <View style={styles.profileIcon}>
-          <CategoryIcon categoryId="shopping" size={42} />
+          <CategoryIcon categoryId="shopping" emoji="🛍️" size={42} />
         </View>
         <View style={styles.headerText}>
           <Text style={styles.eyebrow}>Profile</Text>
           <Text style={styles.title}>{profile?.name ? `Hi, ${profile.name}` : 'Your profile'}</Text>
-          <Text style={styles.subtitle}>Edit your default monthly budget. Calendar screens scale it for longer views.</Text>
+          <Text style={styles.subtitle}>Manage your name, categories, and per-category monthly budgets.</Text>
         </View>
       </View>
 
@@ -77,25 +79,10 @@ export default function ProfileScreen() {
             />
           </View>
         </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.label}>Monthly budget</Text>
-          <View style={styles.inputRow}>
-            <PiggyBank color={colors.textMuted} size={20} strokeWidth={2.4} />
-            <TextInput
-              keyboardType="decimal-pad"
-              placeholder="1200"
-              placeholderTextColor={colors.textMuted}
-              selectionColor={colors.primary}
-              style={styles.input}
-              value={budget}
-              onChangeText={setBudget}
-            />
-          </View>
-        </View>
-
         <AppButton disabled={saving || loadingProfile} onPress={save}>{saving ? 'Saving…' : 'Save profile'}</AppButton>
       </View>
+
+      <CategoryBudgetEditor categories={categoryBudgets} currencyCode={currencyCode} onChange={setCategoryBudgets} />
 
       <View style={styles.previewCard}>
         <View style={styles.previewHeader}>
@@ -103,7 +90,7 @@ export default function ProfileScreen() {
           <Text style={styles.previewTitle}>Budget scaling</Text>
         </View>
         <View style={styles.previewGrid}>
-          <BudgetPreview label="Monthly" value={formatCents(monthlyBudgetCents, currencyCode)} />
+          <BudgetPreview label="Monthly total" value={formatCents(monthlyBudgetCents, currencyCode)} />
           <BudgetPreview label="6-month span" value={formatCents(monthlyBudgetCents * 6, currencyCode)} />
           <BudgetPreview label="Yearly" value={formatCents(monthlyBudgetCents * 12, currencyCode)} />
         </View>

@@ -70,6 +70,7 @@ function RootStack() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="onboarding" options={{ headerShown: false }} />
               <Stack.Screen name="profile" options={{ title: 'Profile', presentation: 'modal' }} />
+              <Stack.Screen name="categories/[id]" options={{ title: 'Category', presentation: 'modal' }} />
               <Stack.Screen name="expenses/new" options={{ title: 'Add Expense', presentation: 'modal' }} />
               <Stack.Screen name="expenses/[id]" options={{ title: 'Edit Expense', presentation: 'modal' }} />
             </Stack>

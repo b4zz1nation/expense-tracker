@@ -2,11 +2,12 @@ import { ChevronDown } from 'lucide-react-native';
 import { FlashList } from '@shopify/flash-list';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Alert, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
-import { CATEGORIES, getCategory, type CategoryId } from '../constants/categories';
+import { getCategory, type CategoryId } from '../constants/categories';
 import { formatCents } from '../lib/currency';
 import { todayDateString } from '../lib/dates';
 import { expenseSchema } from '../schemas/expenseSchema';
 import { useAppTheme } from '../theme/ThemeContext';
+import type { BudgetCategory } from '../types/categoryBudget';
 import type { Expense, ExpenseFormItem, ExpenseFormValues } from '../types/expense';
 import { AppButton } from './AppButton';
 import { CategoryIcon } from './CategoryIcon';
@@ -30,7 +31,7 @@ function createFormItem(label = '', amount = ''): ExpenseFormItem {
   };
 }
 
-const ITEM_LABELS: Record<CategoryId, { heading: string; add: string; edit: string; singular: string; placeholder: string }> = {
+const ITEM_LABELS: Record<string, { heading: string; add: string; edit: string; singular: string; placeholder: string }> = {
   food: { heading: 'Food items', add: 'Add food item', edit: 'Edit food item', singular: 'food item', placeholder: 'Burger, fries, coffee...' },
   transport: { heading: 'Trips', add: 'Add trip', edit: 'Edit trip', singular: 'trip', placeholder: 'Bus, taxi, gas...' },
   shopping: { heading: 'Shopping items', add: 'Add shopping item', edit: 'Edit shopping item', singular: 'shopping item', placeholder: 'Shirt, charger, soap...' },
@@ -38,6 +39,7 @@ const ITEM_LABELS: Record<CategoryId, { heading: string; add: string; edit: stri
   entertainment: { heading: 'Entertainment items', add: 'Add entertainment item', edit: 'Edit entertainment item', singular: 'entertainment item', placeholder: 'Movie, game, concert...' },
   health: { heading: 'Health items', add: 'Add health item', edit: 'Edit health item', singular: 'health item', placeholder: 'Medicine, checkup...' },
   travel: { heading: 'Travel items', add: 'Add travel item', edit: 'Edit travel item', singular: 'travel item', placeholder: 'Hotel, ticket, meal...' },
+  utilities: { heading: 'Utility items', add: 'Add utility item', edit: 'Edit utility item', singular: 'utility item', placeholder: 'Electricity, water, internet...' },
   other: { heading: 'Items', add: 'Add item', edit: 'Edit item', singular: 'item', placeholder: 'What did you buy?' },
 };
 
@@ -49,6 +51,9 @@ type Props = {
   showSubmitButton?: boolean;
   metaFieldsLayout?: 'row' | 'column';
   currencyCode?: string;
+  categories?: BudgetCategory[];
+  defaultCategoryId?: string;
+  lockedCategoryId?: string;
 };
 
 export type ExpenseFormHandle = {
@@ -56,7 +61,7 @@ export type ExpenseFormHandle = {
 };
 
 export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function ExpenseForm(
-  { initialExpense, onSubmit, onDelete, submitLabel, showSubmitButton = true, metaFieldsLayout = 'column', currencyCode },
+  { initialExpense, onSubmit, onDelete, submitLabel, showSubmitButton = true, metaFieldsLayout = 'column', currencyCode, categories = [], defaultCategoryId, lockedCategoryId },
   ref
 ) {
   const { theme } = useAppTheme();
@@ -66,7 +71,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   const initialValues = useMemo<ExpenseFormValues>(() => {
     if (!initialExpense) {
       return {
-        categoryId: 'food',
+        categoryId: lockedCategoryId ?? defaultCategoryId ?? categories[0]?.id ?? 'food',
         spentOn: todayDateString(),
         groupNote: '',
         items: [],
@@ -87,7 +92,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
       groupNote: initialExpense.items.length > 1 ? initialExpense.note : extractGroupNote(initialExpense.note),
       items,
     };
-  }, [initialExpense]);
+  }, [categories, defaultCategoryId, initialExpense, lockedCategoryId]);
 
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState<string | null>(null);
@@ -103,8 +108,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   const [itemDraftAmount, setItemDraftAmount] = useState('');
   const [itemDraftError, setItemDraftError] = useState<string | null>(null);
 
-  const selectedCategory = getCategory(values.categoryId);
-  const labels = ITEM_LABELS[values.categoryId];
+  const selectedCategory = getCategory(values.categoryId, categories);
+  const labels = ITEM_LABELS[values.categoryId] ?? { heading: `${selectedCategory.name} items`, add: 'Add item', edit: 'Edit item', singular: 'item', placeholder: 'What did you buy?' };
+  const categoryLocked = Boolean(lockedCategoryId);
   const { height: windowHeight } = useWindowDimensions();
   const modalScreenPadding = 20;
   const modalKeyboardGap = 12;
@@ -147,13 +153,17 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
 
   const openCategoryMenu = () => {
     Keyboard.dismiss();
-    setCategoryMenuOpen(true);
+    if (!categoryLocked) setCategoryMenuOpen(true);
   };
 
   const closeCategoryMenu = () => {
     Keyboard.dismiss();
     setCategoryMenuOpen(false);
   };
+
+  useEffect(() => {
+    setValues((current) => (current.categoryId === initialValues.categoryId ? current : { ...current, categoryId: initialValues.categoryId }));
+  }, [initialValues.categoryId]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
@@ -281,7 +291,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
     <View style={styles.form}>
       <View style={[styles.summaryCard, { borderColor: selectedCategory.color }]}>
         <View style={styles.summaryHeader}>
-          <CategoryIcon categoryId={selectedCategory.id} size={22} />
+          <CategoryIcon categoryId={selectedCategory.id} emoji={selectedCategory.emoji} size={22} />
           <Text style={styles.summaryLabel}>{labels.heading}</Text>
         </View>
         <Text style={styles.summaryTotal}>{formatCents(itemTotalCents, displayCurrencyCode)}</Text>
@@ -291,16 +301,17 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
         <Text style={styles.label}>Category</Text>
         <Pressable
           onPress={openCategoryMenu}
-          style={({ pressed }) => [styles.dropdown, pressed && styles.pressed]}
+          disabled={categoryLocked}
+          style={({ pressed }) => [styles.dropdown, categoryLocked && styles.dropdownLocked, pressed && !categoryLocked && styles.pressed]}
           accessibilityRole="button"
           accessibilityLabel="Choose category"
         >
           <View style={styles.dropdownValue}>
-            <CategoryIcon categoryId={selectedCategory.id} size={22} />
+            <CategoryIcon categoryId={selectedCategory.id} emoji={selectedCategory.emoji} size={22} />
             <Text style={styles.dropdownText}>{selectedCategory.name}</Text>
           </View>
           <View style={styles.dropdownIconWrap}>
-            <ChevronDown size={18} color={colors.textSecondary} strokeWidth={2.4} />
+            <ChevronDown size={18} color={categoryLocked ? colors.textMuted : colors.textSecondary} strokeWidth={2.4} />
           </View>
         </Pressable>
       </View>
@@ -350,7 +361,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
               <View style={styles.foodItemContent}>
                 <View style={styles.foodItemTopRow}>
                   <View style={styles.foodItemLabelWrap}>
-                    <CategoryIcon categoryId={selectedCategory.id} size={24} />
+                    <CategoryIcon categoryId={selectedCategory.id} emoji={selectedCategory.emoji} size={24} />
                     <Text style={styles.foodItemLabel} numberOfLines={1}>
                       {item.label || labels.placeholder}
                     </Text>
@@ -383,7 +394,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
           <View style={styles.modalCard}>
             <Text style={styles.modalTitle}>Select category</Text>
             <View style={styles.modalList}>
-              {CATEGORIES.map((category) => {
+              {categories.map((category) => {
                 const selected = values.categoryId === category.id;
                 return (
                   <Pressable
@@ -395,7 +406,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                     style={[styles.modalItem, selected && { backgroundColor: `${category.color}18` }]}
                   >
                     <View style={styles.modalItemContent}>
-                      <CategoryIcon categoryId={category.id} size={22} />
+                      <CategoryIcon categoryId={category.id} emoji={category.emoji} size={22} />
                       <Text style={[styles.modalItemText, selected && { color: colors.primary }]}>
                         {category.name}
                       </Text>
@@ -552,6 +563,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   removeButton: { width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.expenseSoft },
   removeButtonText: { color: colors.expense, fontWeight: '900', fontSize: 18, lineHeight: 18 },
   dropdown: { backgroundColor: colors.surface, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 14, borderWidth: 1, borderColor: 'transparent', flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  dropdownLocked: { opacity: 0.78 },
   dropdownValue: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 },
   dropdownText: { color: colors.text, fontWeight: '700' },
   dropdownIconWrap: { width: 28, height: 28, borderRadius: 14, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', marginLeft: 12 },

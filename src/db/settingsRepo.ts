@@ -1,7 +1,9 @@
 import { getDatabase } from './database';
 import { migrateDb } from './migrations';
+import { DEFAULT_BUDGET_CATEGORIES, normalizeBudgetCategories, parseBudgetCategoriesJson, totalCategoryBudgetCents } from '../lib/categoryBudgets';
 import { getDeviceDefaultCurrencyCode } from '../lib/currencies';
 import { isThemeMode, type ThemeMode } from '../theme/theme';
+import type { BudgetCategory } from '../types/categoryBudget';
 
 let initPromise: Promise<void> | null = null;
 
@@ -11,6 +13,7 @@ const SETTINGS_KEYS = {
   userName: 'user_name',
   userPhotoUri: 'user_photo_uri',
   monthlyBudgetCents: 'monthly_budget_cents',
+  categoryBudgets: 'category_budgets',
   onboardingComplete: 'onboarding_complete',
 } as const;
 
@@ -86,36 +89,55 @@ export type UserProfile = {
   name: string;
   photoUri?: string;
   monthlyBudgetCents: number;
+  categoryBudgets: BudgetCategory[];
   onboardingComplete: boolean;
 };
 
+function categoriesFromLegacyBudget(monthlyBudget: string | null): BudgetCategory[] {
+  const budgetCents = Number(monthlyBudget ?? 0);
+  if (!Number.isSafeInteger(budgetCents) || budgetCents <= 0) return DEFAULT_BUDGET_CATEGORIES;
+  const share = Math.floor(budgetCents / DEFAULT_BUDGET_CATEGORIES.length);
+  let remainder = budgetCents - share * DEFAULT_BUDGET_CATEGORIES.length;
+  return DEFAULT_BUDGET_CATEGORIES.map((category) => {
+    const extra = remainder > 0 ? 1 : 0;
+    remainder -= extra;
+    return { ...category, budgetCents: share + extra };
+  });
+}
+
 export async function getUserProfile(): Promise<UserProfile | null> {
-  const [name, photoUri, monthlyBudget, onboardingComplete] = await Promise.all([
+  const [name, photoUri, monthlyBudget, categoryBudgetsJson, onboardingComplete] = await Promise.all([
     getSetting(SETTINGS_KEYS.userName),
     getSetting(SETTINGS_KEYS.userPhotoUri),
     getSetting(SETTINGS_KEYS.monthlyBudgetCents),
+    getSetting(SETTINGS_KEYS.categoryBudgets),
     getSetting(SETTINGS_KEYS.onboardingComplete),
   ]);
-  const budgetCents = Number(monthlyBudget ?? 0);
-  if (onboardingComplete !== 'true' || !name?.trim() || !Number.isSafeInteger(budgetCents) || budgetCents <= 0) {
+  const categoryBudgets = parseBudgetCategoriesJson(categoryBudgetsJson) ?? categoriesFromLegacyBudget(monthlyBudget);
+  const monthlyBudgetCents = totalCategoryBudgetCents(categoryBudgets);
+  if (onboardingComplete !== 'true' || !name?.trim() || monthlyBudgetCents <= 0) {
     return null;
   }
   return {
     name: name.trim(),
     photoUri: photoUri?.trim() || undefined,
-    monthlyBudgetCents: budgetCents,
+    monthlyBudgetCents,
+    categoryBudgets,
     onboardingComplete: true,
   };
 }
 
-export async function saveUserProfile(name: string, monthlyBudgetCents: number): Promise<UserProfile> {
+export async function saveUserProfile(name: string, categoryBudgets: BudgetCategory[]): Promise<UserProfile> {
   const trimmedName = name.trim();
+  const normalizedCategories = normalizeBudgetCategories(categoryBudgets);
+  const monthlyBudgetCents = totalCategoryBudgetCents(normalizedCategories);
   if (!trimmedName) throw new Error('Enter your name.');
-  if (!Number.isSafeInteger(monthlyBudgetCents) || monthlyBudgetCents <= 0) throw new Error('Enter a valid monthly budget.');
+  if (normalizedCategories.length === 0 || monthlyBudgetCents <= 0) throw new Error('Set at least one category budget.');
 
   await Promise.all([
     setSetting(SETTINGS_KEYS.userName, trimmedName),
     setSetting(SETTINGS_KEYS.monthlyBudgetCents, String(monthlyBudgetCents)),
+    setSetting(SETTINGS_KEYS.categoryBudgets, JSON.stringify(normalizedCategories)),
     setSetting(SETTINGS_KEYS.onboardingComplete, 'true'),
   ]);
 
@@ -123,6 +145,7 @@ export async function saveUserProfile(name: string, monthlyBudgetCents: number):
     name: trimmedName,
     photoUri: (await getSetting(SETTINGS_KEYS.userPhotoUri))?.trim() || undefined,
     monthlyBudgetCents,
+    categoryBudgets: normalizedCategories,
     onboardingComplete: true,
   };
 }
