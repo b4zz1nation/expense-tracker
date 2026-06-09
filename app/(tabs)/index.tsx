@@ -1,11 +1,10 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
-import { CalendarCheck, X } from 'lucide-react-native';
+import { CalendarCheck, Plus, X } from 'lucide-react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AppButton } from '../../src/components/AppButton';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ExpenseItem } from '../../src/components/ExpenseItem';
 import { MiniStatCard } from '../../src/components/MiniStatCard';
@@ -156,17 +155,19 @@ export default function DashboardScreen() {
               <Text style={styles.sectionSubtitle}>{dateFilterLabel(dateFilter)} · {formatCents(monthlyTotal, displayCurrencyCode)}</Text>
             </View>
           </View>
+          <Pressable accessibilityRole="button" onPress={() => router.push('/expenses/new')} style={styles.compactAddButton}>
+            <Plus color={colors.onPrimary} size={14} strokeWidth={3} />
+            <Text style={styles.compactAddButtonText}>Add</Text>
+          </Pressable>
         </View>
         {viewPreviewExpenses.length === 0 && !loading ? (
-          <EmptyState title="No expenses in this view" message="Use the arrows to move between periods, or add an expense for this selection." actionLabel="Add Expense" onAction={() => router.push('/expenses/new')} />
+          <EmptyState title="No expenses in this view" message="Use the arrows to move between periods, or tap Add for this selection." />
         ) : (
           viewPreviewExpenses.map((expense) => (
             <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} onPress={() => openExpenseSheet(expense)} />
           ))
         )}
       </View>
-
-      <AppButton onPress={() => router.push('/expenses/new')}>Add Expense</AppButton>
 
       <View style={[styles.section, styles.breakdownSection]}>
         <View style={styles.sectionHeader}>
@@ -358,6 +359,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
 
   sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
   sectionSubtitle: { color: colors.textMuted, fontSize: 12, fontWeight: '700', marginTop: 2 },
+  compactAddButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 10, paddingVertical: 7 },
+  compactAddButtonText: { color: colors.onPrimary, fontSize: 12, fontWeight: '900' },
   sectionAction: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: colors.primarySoft },
   sectionActionText: { color: colors.primaryPressed, fontWeight: '800' },
   link: { color: colors.primary, fontWeight: '800' },
