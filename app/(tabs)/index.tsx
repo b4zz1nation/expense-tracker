@@ -14,7 +14,6 @@ import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { getBudgetCategory } from '../../src/lib/categoryBudgets';
 import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
-import { getTotalExpenses } from '../../src/db/expensesRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
 import { createDefaultDateFilter, dateFilterExpensesTitle, dateFilterLabel, budgetForDateFilter } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
@@ -35,7 +34,6 @@ export default function DashboardScreen() {
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
-  const [totalExpenseCents, setTotalExpenseCents] = useState(0);
   const { expenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
@@ -46,7 +44,6 @@ export default function DashboardScreen() {
     useCallback(() => {
       void refresh();
       void refreshProfile();
-      void getTotalExpenses().then(setTotalExpenseCents).catch(() => setTotalExpenseCents(0));
     }, [refresh, refreshProfile])
   );
 
@@ -110,6 +107,7 @@ export default function DashboardScreen() {
   }, [budgetCategories, categoryBreakdown, dateFilter]);
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0 || item.budgetCents > 0);
+  const dayViewExpenses = dateFilter.mode === 'day' ? expenses.filter((expense) => expense.spentOn === dateFilter.date) : [];
   const viewPreviewExpenses = expenses.slice(0, 3);
   const totalBudgetCents = budgetForDateFilter(profile?.monthlyBudgetCents ?? 0, dateFilter);
 
@@ -118,7 +116,7 @@ export default function DashboardScreen() {
       <DateFilterSelector value={dateFilter} onChange={setDateFilter} />
 
       <View style={styles.summaryStack}>
-        <TotalBudgetCard spentCents={totalExpenseCents} budgetCents={totalBudgetCents} currencyCode={displayCurrencyCode} />
+        <TotalBudgetCard spentCents={monthlyTotal} budgetCents={totalBudgetCents} currencyCode={displayCurrencyCode} />
       </View>
 
       {loading ? <ActivityIndicator /> : null}
@@ -141,10 +139,13 @@ export default function DashboardScreen() {
           </Pressable>
         </View>
         {dateFilter.mode === 'day' ? (
-          <View style={styles.dayTotalCard}>
-            <Text style={styles.dayTotalLabel}>Total for this day</Text>
-            <Text style={styles.dayTotalAmount}>{formatCents(monthlyTotal, displayCurrencyCode)}</Text>
-          </View>
+          dayViewExpenses.length === 0 && !loading ? (
+            <EmptyState title="No expenses for this day" message="Use the arrows to move between days, or tap Add for this date." />
+          ) : (
+            dayViewExpenses.map((expense) => (
+              <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} categories={budgetCategories} onPress={() => openExpenseSheet(expense)} />
+            ))
+          )
         ) : viewPreviewExpenses.length === 0 && !loading ? (
           <EmptyState title="No expenses in this view" message="Use the arrows to move between periods, or tap Add for this selection." />
         ) : (
@@ -368,10 +369,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   summaryStack: { gap: 10 },
   summaryRow: { flexDirection: 'row', gap: 10 },
   section: { gap: 10 },
-  daySection: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card },
-  dayTotalCard: { backgroundColor: colors.surface, borderColor: colors.primarySoftBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 4, padding: 16 },
-  dayTotalLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase' },
-  dayTotalAmount: { color: colors.text, fontSize: 28, fontWeight: '900' },
+  daySection: { backgroundColor: colors.surface, borderColor: colors.border, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card },
   breakdownSection: { marginBottom: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   sectionTitleRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10 },

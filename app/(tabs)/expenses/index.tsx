@@ -13,7 +13,6 @@ import { createDefaultDateFilter, dateFilterLabel, budgetForDateFilter } from '.
 import { useExpenses } from '../../../src/hooks/useExpenses';
 import { useProfile } from '../../../src/hooks/useProfile';
 import { getPreferredCurrencyCode } from '../../../src/db/settingsRepo';
-import { getTotalExpenses } from '../../../src/db/expensesRepo';
 import { getBudgetCategory } from '../../../src/lib/categoryBudgets';
 import { useAppTheme } from '../../../src/theme/ThemeContext';
 
@@ -24,7 +23,6 @@ export default function ExpensesScreen() {
   const { colors } = theme;
   const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
-  const [totalExpenseCents, setTotalExpenseCents] = useState(0);
   const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const { expenses, loading, error, refresh, categoryBreakdown } = useExpenses(dateFilter);
@@ -34,7 +32,6 @@ export default function ExpensesScreen() {
   useFocusEffect(useCallback(() => {
     void refresh();
     void refreshProfile();
-    void getTotalExpenses().then(setTotalExpenseCents).catch(() => setTotalExpenseCents(0));
     void (async () => setDisplayCurrencyCode(await getPreferredCurrencyCode()))();
   }, [refresh, refreshProfile]));
 
@@ -71,7 +68,7 @@ export default function ExpensesScreen() {
         </Pressable>
       </View>
       <View style={styles.summaryStack}>
-        <TotalBudgetCard spentCents={totalExpenseCents} budgetCents={totalBudgetCents} currencyCode={displayCurrencyCode} />
+        <TotalBudgetCard spentCents={expenses.reduce((sum, expense) => sum + expense.amountCents, 0)} budgetCents={totalBudgetCents} currencyCode={displayCurrencyCode} />
       </View>
 
       {loading ? <ActivityIndicator /> : null}
