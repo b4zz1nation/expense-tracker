@@ -308,12 +308,14 @@ export default function DashboardScreen() {
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderText}>
                     <Text style={styles.modalTitle}>All expenses</Text>
-                    <Text style={styles.modalSubtitle}>{modalDateLabel} · {formatCents(modalExpenses.reduce((sum, expense) => sum + expense.amountCents, 0), displayCurrencyCode)}</Text>
+                    <View style={styles.modalSubtitleActionRow}>
+                      <Text style={[styles.modalSubtitle, styles.modalSubtitleInRow]}>{modalDateLabel} · {formatCents(modalExpenses.reduce((sum, expense) => sum + expense.amountCents, 0), displayCurrencyCode)}</Text>
+                      <Pressable onPress={showDayAddPage} accessibilityRole="button" style={styles.modalAddButton}>
+                        <Plus color={colors.onPrimary} size={15} strokeWidth={3} />
+                        <Text style={styles.modalAddButtonText}>Add</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                  <Pressable onPress={showDayAddPage} accessibilityRole="button" style={styles.modalAddButton}>
-                    <Plus color={colors.onPrimary} size={15} strokeWidth={3} />
-                    <Text style={styles.modalAddButtonText}>Add</Text>
-                  </Pressable>
                   <Pressable onPress={closeDayExpensesModal} accessibilityRole="button" style={styles.closeButton}>
                     <X color={colors.textMuted} size={20} strokeWidth={2.6} />
                   </Pressable>
@@ -355,11 +357,13 @@ export default function DashboardScreen() {
                   </Pressable>
                   <View style={styles.modalHeaderText}>
                     <Text style={styles.modalTitle}>Add expense</Text>
-                    <Text style={styles.modalSubtitle}>{modalDefaultSpentOn ? `For ${modalDateLabel}` : 'Create a new logged expense'}</Text>
+                    <View style={styles.modalSubtitleActionRow}>
+                      <Text style={[styles.modalSubtitle, styles.modalSubtitleInRow]}>{modalDefaultSpentOn ? `For ${modalDateLabel}` : 'Create a new logged expense'}</Text>
+                      <Pressable onPress={showDayListPage} accessibilityRole="button" style={styles.closeButton}>
+                        <Text style={styles.cancelText}>Cancel</Text>
+                      </Pressable>
+                    </View>
                   </View>
-                  <Pressable onPress={showDayListPage} accessibilityRole="button" style={styles.closeButton}>
-                    <Text style={styles.cancelText}>Cancel</Text>
-                  </Pressable>
                 </View>
 
                 <ScrollView
@@ -560,6 +564,8 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   footerPrimaryText: { color: colors.onPrimary, fontWeight: '900' },
   modalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   modalHeaderText: { flex: 1, gap: 2 },
+  modalSubtitleActionRow: { alignItems: 'center', flexDirection: 'row', gap: 10, justifyContent: 'space-between', marginTop: 4 },
+  modalSubtitleInRow: { flex: 1 },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },
   modalSubtitle: { color: colors.textMuted, fontSize: 13, fontWeight: '600' },
   modalList: { gap: 10, marginHorizontal: -8 },
