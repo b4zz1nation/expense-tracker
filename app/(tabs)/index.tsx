@@ -1,9 +1,10 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
 import { CalendarCheck, ChevronLeft, Plus, X } from 'lucide-react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
+import PagerView from 'react-native-pager-view';
 import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Easing } from 'react-native';
+import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '../../src/components/EmptyState';
 import { ExpenseForm, type ExpenseFormHandle } from '../../src/components/ExpenseForm';
@@ -28,24 +29,21 @@ export default function DashboardScreen() {
   const styles = createStyles(theme);
   const { colors } = theme;
   const insets = useSafeAreaInsets();
-  const { width: windowWidth } = useWindowDimensions();
   const { setSheetOpen } = useExpenseSheet();
   const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
   const [dayExpensesModalOpen, setDayExpensesModalOpen] = useState(false);
-  const [dayModalMode, setDayModalMode] = useState<'list' | 'add'>('list');
   const [dayAddFormKey, setDayAddFormKey] = useState(0);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
   const { expenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
   const dayAddFormRef = useRef<ExpenseFormHandle>(null);
-  const dayModalSlide = useRef(new Animated.Value(0)).current;
+  const dayModalPagerRef = useRef<PagerView>(null);
   const sheetSnapPoints = useMemo(() => ['68%', '96%'], []);
   const sheetBottomInset = Math.max(insets.bottom, 12);
-  const dayModalPageWidth = Math.max(280, windowWidth - 68);
 
   useFocusEffect(
     useCallback(() => {
@@ -69,15 +67,6 @@ export default function DashboardScreen() {
 
     return () => cancelAnimationFrame(frame);
   }, [selectedExpense]);
-
-  useEffect(() => {
-    Animated.timing(dayModalSlide, {
-      toValue: dayModalMode === 'add' ? -dayModalPageWidth : 0,
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  }, [dayModalMode, dayModalPageWidth, dayModalSlide]);
 
   const renderSheetBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -109,21 +98,29 @@ export default function DashboardScreen() {
   };
 
   const openDayExpensesModal = () => {
-    setDayModalMode('list');
     setDayAddFormKey((current) => current + 1);
     setDayExpensesModalOpen(true);
+    requestAnimationFrame(() => dayModalPagerRef.current?.setPageWithoutAnimation(0));
   };
 
   const closeDayExpensesModal = () => {
     setDayExpensesModalOpen(false);
-    setDayModalMode('list');
+    requestAnimationFrame(() => dayModalPagerRef.current?.setPageWithoutAnimation(0));
+  };
+
+  const showDayAddPage = () => {
+    dayModalPagerRef.current?.setPage(1);
+  };
+
+  const showDayListPage = () => {
+    dayModalPagerRef.current?.setPage(0);
   };
 
   const submitDayExpense = async (values: ExpenseFormValues) => {
     await createExpenses(values, displayCurrencyCode);
     await refresh();
     setDayAddFormKey((current) => current + 1);
-    setDayModalMode('list');
+    showDayListPage();
   };
 
   const budgetCategories = profile?.categoryBudgets ?? [];
@@ -301,19 +298,19 @@ export default function DashboardScreen() {
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={closeDayExpensesModal} />
           <View style={[styles.modalCard, styles.dayExpensesModalCard]}>
-            <Animated.View
-              style={[
-                styles.dayModalPager,
-                { width: dayModalPageWidth * 2, transform: [{ translateX: dayModalSlide }] },
-              ]}
+            <PagerView
+              ref={dayModalPagerRef}
+              style={styles.dayModalPager}
+              initialPage={0}
+              overdrag
             >
-              <View style={[styles.dayModalPage, { width: dayModalPageWidth }]}>
+              <View key="expenses-list" style={styles.dayModalPage}>
                 <View style={styles.modalHeader}>
                   <View style={styles.modalHeaderText}>
                     <Text style={styles.modalTitle}>All expenses</Text>
                     <Text style={styles.modalSubtitle}>{modalDateLabel} · {formatCents(modalExpenses.reduce((sum, expense) => sum + expense.amountCents, 0), displayCurrencyCode)}</Text>
                   </View>
-                  <Pressable onPress={() => setDayModalMode('add')} accessibilityRole="button" style={styles.modalAddButton}>
+                  <Pressable onPress={showDayAddPage} accessibilityRole="button" style={styles.modalAddButton}>
                     <Plus color={colors.onPrimary} size={15} strokeWidth={3} />
                     <Text style={styles.modalAddButtonText}>Add</Text>
                   </Pressable>
@@ -351,16 +348,16 @@ export default function DashboardScreen() {
                 </ScrollView>
               </View>
 
-              <View style={[styles.dayModalPage, { width: dayModalPageWidth }]}>
+              <View key="add-expense" style={styles.dayModalPage}>
                 <View style={styles.modalHeader}>
-                  <Pressable onPress={() => setDayModalMode('list')} accessibilityRole="button" accessibilityLabel="Back to expense list" style={styles.backButton}>
+                  <Pressable onPress={showDayListPage} accessibilityRole="button" accessibilityLabel="Back to expense list" style={styles.backButton}>
                     <ChevronLeft color={colors.text} size={22} strokeWidth={2.7} />
                   </Pressable>
                   <View style={styles.modalHeaderText}>
                     <Text style={styles.modalTitle}>Add expense</Text>
                     <Text style={styles.modalSubtitle}>{modalDefaultSpentOn ? `For ${modalDateLabel}` : 'Create a new logged expense'}</Text>
                   </View>
-                  <Pressable onPress={() => setDayModalMode('list')} accessibilityRole="button" style={styles.closeButton}>
+                  <Pressable onPress={showDayListPage} accessibilityRole="button" style={styles.closeButton}>
                     <Text style={styles.cancelText}>Cancel</Text>
                   </Pressable>
                 </View>
@@ -398,7 +395,7 @@ export default function DashboardScreen() {
                   </Pressable>
                 </View>
               </View>
-            </Animated.View>
+            </PagerView>
           </View>
         </View>
       </Modal>
@@ -548,9 +545,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
 
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 16 },
   modalCard: { backgroundColor: colors.surface, borderRadius: 24, padding: 18, gap: 14, maxHeight: '82%' },
-  dayExpensesModalCard: { overflow: 'hidden', padding: 16, width: '100%' },
-  dayModalPager: { flexDirection: 'row' },
-  dayModalPage: { gap: 14, maxHeight: '100%' },
+  dayExpensesModalCard: { height: '82%', overflow: 'hidden', padding: 16, width: '100%' },
+  dayModalPager: { flex: 1 },
+  dayModalPage: { flex: 1, gap: 14 },
   dayModalFooter: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
   modalAddButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 11, paddingVertical: 7 },
   modalAddButtonText: { color: colors.onPrimary, fontSize: 12, fontWeight: '900' },
