@@ -1,6 +1,8 @@
 import {
+  budgetForDateFilter,
   clampRangeToOneYear,
   createDefaultDateFilter,
+  createTodayDateFilter,
   dateFilterExpensesTitle,
   dateFilterHelper,
   dateFilterLabel,
@@ -11,11 +13,11 @@ import {
 } from '../src/lib/dateFilter';
 
 describe('date filter utilities', () => {
-  it('creates day, month, span, and year query ranges', () => {
+  it('creates day, month, custom range, and year query ranges', () => {
     expect(dateFilterToRange({ mode: 'day', date: '2026-02-14' })).toEqual({ startDate: '2026-02-14', endDate: '2026-02-14' });
     expect(dateFilterToRange({ mode: 'month', month: '2026-02' })).toEqual({ startDate: '2026-02-01', endDate: '2026-02-28' });
-    expect(dateFilterToRange({ mode: 'range90', startDate: '2026-01-10' })).toEqual({ startDate: '2026-01-10', endDate: '2026-04-09' });
-    expect(dateFilterToRange({ mode: 'rangeYear', startDate: '2026-01-10' })).toEqual({ startDate: '2026-01-10', endDate: '2027-01-09' });
+    expect(dateFilterToRange({ mode: 'range', startDate: '2026-01-10', endDate: '2026-01-20' })).toEqual({ startDate: '2026-01-10', endDate: '2026-01-20' });
+    expect(dateFilterToRange({ mode: 'range', startDate: '2026-01-20', endDate: '2026-01-10' })).toEqual({ startDate: '2026-01-10', endDate: '2026-01-20' });
     expect(dateFilterToRange({ mode: 'year', year: 2025 })).toEqual({ startDate: '2025-01-01', endDate: '2025-12-31' });
   });
 
@@ -28,22 +30,26 @@ describe('date filter utilities', () => {
   it('shifts each filter mode predictably', () => {
     expect(shiftDateFilter({ mode: 'day', date: '2026-01-01' }, -1)).toEqual({ mode: 'day', date: '2025-12-31' });
     expect(shiftDateFilter({ mode: 'month', month: '2026-01' }, -1)).toEqual({ mode: 'month', month: '2025-12' });
-    expect(shiftDateFilter({ mode: 'range90', startDate: '2026-01-01' }, 1)).toEqual({ mode: 'range90', startDate: '2026-04-01' });
-    expect(shiftDateFilter({ mode: 'rangeYear', startDate: '2026-01-10' }, 1)).toEqual({ mode: 'rangeYear', startDate: '2027-01-10' });
+    expect(shiftDateFilter({ mode: 'range', startDate: '2026-01-01', endDate: '2026-01-10' }, 1)).toEqual({ mode: 'range', startDate: '2026-01-11', endDate: '2026-01-20' });
     expect(shiftDateFilter({ mode: 'year', year: 2026 }, 1)).toEqual({ mode: 'year', year: 2027 });
   });
 
   it('labels defaults and modes clearly', () => {
-    expect(createDefaultDateFilter(new Date(2026, 5, 2))).toEqual({ mode: 'day', date: '2026-06-02' });
+    expect(createDefaultDateFilter(new Date(2026, 5, 2))).toEqual({ mode: 'month', month: '2026-06' });
+    expect(createTodayDateFilter(new Date(2026, 5, 2))).toEqual({ mode: 'day', date: '2026-06-02' });
     expect(dateFilterHelper({ mode: 'day', date: '2026-06-02' })).toBe('Day');
-    expect(dateFilterHelper({ mode: 'range90', startDate: '2026-06-02' })).toBe('90-day span');
-    expect(dateFilterHelper({ mode: 'rangeYear', startDate: '2026-06-02' })).toBe('1-year span');
+    expect(dateFilterHelper({ mode: 'range', startDate: '2026-06-02', endDate: '2026-06-09' })).toBe('Range');
     expect(dateFilterLabel({ mode: 'year', year: 2024 })).toBe('2024');
     expect(selectedDayForDateFilter({ mode: 'month', month: '2026-06' })).toBe('2026-06-01');
     expect(dateFilterExpensesTitle({ mode: 'day', date: '2026-06-02' })).toBe('Day view expenses');
     expect(dateFilterExpensesTitle({ mode: 'month', month: '2026-06' })).toBe('Month view expenses');
-    expect(dateFilterExpensesTitle({ mode: 'range90', startDate: '2026-06-02' })).toBe('90-day view expenses');
-    expect(dateFilterExpensesTitle({ mode: 'rangeYear', startDate: '2026-06-02' })).toBe('365-day view expenses');
+    expect(dateFilterExpensesTitle({ mode: 'range', startDate: '2026-06-02', endDate: '2026-06-09' })).toBe('Range view expenses');
     expect(dateFilterExpensesTitle({ mode: 'year', year: 2026 })).toBe('Year view expenses');
+  });
+
+  it('scales monthly budgets by active date filter', () => {
+    expect(budgetForDateFilter(31_000, { mode: 'day', date: '2026-01-15' })).toBe(1_000);
+    expect(budgetForDateFilter(31_000, { mode: 'month', month: '2026-01' })).toBe(31_000);
+    expect(budgetForDateFilter(31_000, { mode: 'year', year: 2026 })).toBe(372_000);
   });
 });

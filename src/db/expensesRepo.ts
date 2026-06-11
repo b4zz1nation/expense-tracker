@@ -54,10 +54,17 @@ function parseItemsJson(itemsJson: string | null, note: string, amountCents: num
             if (!item || typeof item !== 'object') return null;
             const label = typeof (item as { label?: unknown }).label === 'string' ? (item as { label: string }).label.trim() : '';
             const itemAmount = Number((item as { amountCents?: unknown }).amountCents);
+            const baseAmount = Number((item as { baseAmountCents?: unknown }).baseAmountCents);
+            const quantity = Number((item as { quantity?: unknown }).quantity);
             if (!label || !Number.isFinite(itemAmount) || itemAmount <= 0) return null;
-            return { label, amountCents: Math.round(itemAmount) } satisfies ExpenseLineItem;
+            return {
+              label,
+              amountCents: Math.round(itemAmount),
+              baseAmountCents: Number.isFinite(baseAmount) && baseAmount > 0 ? Math.round(baseAmount) : Math.round(itemAmount),
+              quantity: Number.isFinite(quantity) && quantity > 0 ? quantity : 1,
+            } satisfies ExpenseLineItem;
           })
-          .filter((item): item is ExpenseLineItem => Boolean(item));
+          .filter((item): item is NonNullable<typeof item> => Boolean(item));
         if (items.length > 0) return items;
       }
     } catch {
@@ -131,21 +138,33 @@ function spentAtFromDate(spentOn: string): string {
   return new Date(`${spentOn}T12:00:00`).toISOString();
 }
 
+function formItemToLineItem(item: ExpenseFormValues['items'][number]): ExpenseLineItem | null {
+  const label = item.label.trim();
+  const baseAmountCents = Math.round(Number.parseFloat(item.amount) * 100);
+  const quantityValue = Number.parseFloat(item.quantity || '1');
+  const quantity = Number.isFinite(quantityValue) && quantityValue > 0 ? quantityValue : 1;
+  const amountCents = Math.round(baseAmountCents * quantity);
+  if (!label || !Number.isFinite(baseAmountCents) || baseAmountCents <= 0 || amountCents <= 0) return null;
+  return { label, baseAmountCents, quantity, amountCents };
+}
+
+function formItemsToLineItems(values: ExpenseFormValues): ExpenseLineItem[] {
+  return values.items.map(formItemToLineItem).filter((item): item is ExpenseLineItem => Boolean(item));
+}
+
 export async function createExpenses(values: ExpenseFormValues, currency?: string): Promise<Expense[]> {
   await initDb();
   const now = new Date().toISOString();
   const effectiveCurrency = (currency ?? await getPreferredCurrencyCode()).trim().toUpperCase();
   const drafts = itemizedValuesToExpenseDrafts(values, effectiveCurrency);
+  const groupedItems = formItemsToLineItems(values);
   const expenses = drafts.map((draft, index) => ({
     id: createId(),
     amountCents: draft.amountCents,
     currency: draft.currency,
     categoryId: draft.categoryId,
     note: draft.note,
-    items: values.groupNote.trim() ? values.items.map((item) => ({
-      label: item.label.trim(),
-      amountCents: Math.round(Number.parseFloat(item.amount) * 100),
-    })).filter((item) => item.label && item.amountCents > 0) : [{ label: draft.note, amountCents: draft.amountCents }],
+    items: values.groupNote.trim() ? groupedItems : [groupedItems[index] ?? { label: draft.note, amountCents: draft.amountCents, baseAmountCents: draft.amountCents, quantity: 1 }],
     spentOn: draft.spentOn,
     spentAt: spentAtFromDate(draft.spentOn),
     createdAt: now,
@@ -192,12 +211,10 @@ export async function updateExpense(id: string, values: ExpenseFormValues, curre
   if (!draft) throw new Error('Add at least one item.');
   const spentAt = spentAtFromDate(draft.spentOn);
   const db = await getDatabase();
+  const groupedItems = formItemsToLineItems(values);
   const items = values.groupNote.trim()
-    ? values.items.map((item) => ({
-        label: item.label.trim(),
-        amountCents: Math.round(Number.parseFloat(item.amount) * 100),
-      })).filter((item): item is ExpenseLineItem => item.label.length > 0 && item.amountCents > 0)
-    : [{ label: draft.note, amountCents: draft.amountCents }];
+    ? groupedItems
+    : [groupedItems[0] ?? { label: draft.note, amountCents: draft.amountCents, baseAmountCents: draft.amountCents, quantity: 1 }];
   await db.runAsync(
     `UPDATE expenses
      SET amount_cents = ?, currency = ?, category_id = ?, note = ?, items_json = ?, spent_on = ?, spent_at = ?, updated_at = ?
@@ -289,6 +306,17 @@ export async function getTotalForRange(range: DateRange): Promise<number> {
     `SELECT COALESCE(SUM(amount_cents), 0) as total FROM expenses
      WHERE deleted_at IS NULL AND spent_on >= ? AND spent_on <= ?`,
     [range.startDate, range.endDate],
+  );
+  return row?.total ?? 0;
+}
+
+export async function getCategoryTotalForRange(categoryId: string, range: DateRange): Promise<number> {
+  await initDb();
+  const db = await getDatabase();
+  const row = await db.getFirstAsync<{ total: number }>(
+    `SELECT COALESCE(SUM(amount_cents), 0) as total FROM expenses
+     WHERE deleted_at IS NULL AND category_id = ? AND spent_on >= ? AND spent_on <= ?`,
+    [categoryId, range.startDate, range.endDate],
   );
   return row?.total ?? 0;
 }

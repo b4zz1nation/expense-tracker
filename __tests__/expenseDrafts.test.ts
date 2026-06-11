@@ -7,14 +7,14 @@ describe('itemizedValuesToExpenseDrafts', () => {
       spentOn: '2026-06-02',
       groupNote: '',
       items: [
-        { label: 'Burger', amount: '8.50' },
-        { label: 'Fries', amount: '3.25' },
+        { label: 'Burger', amount: '8.50', quantity: '2' },
+        { label: 'Fries', amount: '3.25', quantity: '1' },
       ],
     }, 'USD');
 
     expect(drafts).toEqual([
       {
-        amountCents: 850,
+        amountCents: 1700,
         currency: 'USD',
         categoryId: 'food',
         note: 'Burger',
@@ -36,14 +36,14 @@ describe('itemizedValuesToExpenseDrafts', () => {
       spentOn: '2026-06-02',
       groupNote: 'Team lunch',
       items: [
-        { label: 'Burger #1', amount: '8.50' },
-        { label: 'Burger #2', amount: '3.25' },
+        { label: 'Burger #1', amount: '8.50', quantity: '2' },
+        { label: 'Burger #2', amount: '3.25', quantity: '1' },
       ],
     }, 'USD');
 
     expect(drafts).toEqual([
       {
-        amountCents: 1175,
+        amountCents: 2025,
         currency: 'USD',
         categoryId: 'food',
         note: 'Team lunch',

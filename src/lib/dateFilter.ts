@@ -1,12 +1,11 @@
 import { currentMonthString, formatDateLabel, monthLabel, todayDateString } from './dates';
 
-export type DateFilterMode = 'day' | 'month' | 'range90' | 'rangeYear' | 'year';
+export type DateFilterMode = 'day' | 'month' | 'range' | 'year';
 
 export type DateFilter =
   | { mode: 'day'; date: string }
   | { mode: 'month'; month: string }
-  | { mode: 'range90'; startDate: string }
-  | { mode: 'rangeYear'; startDate: string }
+  | { mode: 'range'; startDate: string; endDate: string }
   | { mode: 'year'; year: number };
 
 export type DateRange = {
@@ -15,6 +14,10 @@ export type DateRange = {
 };
 
 export function createDefaultDateFilter(date = new Date()): DateFilter {
+  return { mode: 'month', month: currentMonthString(date) };
+}
+
+export function createTodayDateFilter(date = new Date()): DateFilter {
   return { mode: 'day', date: todayDateString(date) };
 }
 
@@ -30,18 +33,8 @@ export function dateFilterToRange(filter: DateFilter): DateRange {
     };
   }
 
-  if (filter.mode === 'range90') {
-    return {
-      startDate: filter.startDate,
-      endDate: addDays(filter.startDate, 89),
-    };
-  }
-
-  if (filter.mode === 'rangeYear') {
-    return {
-      startDate: filter.startDate,
-      endDate: addDays(addYears(filter.startDate, 1), -1),
-    };
+  if (filter.mode === 'range') {
+    return normalizeRange(filter.startDate, filter.endDate);
   }
 
   return {
@@ -62,19 +55,15 @@ export function dateFilterLabel(filter: DateFilter): string {
 export function dateFilterHelper(filter: DateFilter): string {
   if (filter.mode === 'day') return 'Day';
   if (filter.mode === 'month') return 'Month';
-  if (filter.mode === 'range90') return '90-day span';
-  if (filter.mode === 'rangeYear') return '1-year span';
+  if (filter.mode === 'range') return 'Range';
   return 'Yearly';
 }
 
 export function dateFilterExpensesTitle(filter: DateFilter): string {
   if (filter.mode === 'day') return 'Day view expenses';
   if (filter.mode === 'month') return 'Month view expenses';
-  if (filter.mode === 'year') return 'Year view expenses';
-
-  const range = dateFilterToRange(filter);
-  const dayCount = daysBetween(range.startDate, range.endDate) + 1;
-  return `${dayCount}-day view expenses`;
+  if (filter.mode === 'range') return 'Range view expenses';
+  return 'Year view expenses';
 }
 
 export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
@@ -86,12 +75,10 @@ export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
     return { mode: 'month', month: shiftMonthValue(filter.month, delta) };
   }
 
-  if (filter.mode === 'range90') {
-    return { mode: 'range90', startDate: addDays(filter.startDate, delta * 90) };
-  }
-
-  if (filter.mode === 'rangeYear') {
-    return { mode: 'rangeYear', startDate: addYears(filter.startDate, delta) };
+  if (filter.mode === 'range') {
+    const range = dateFilterToRange(filter);
+    const dayCount = daysBetween(range.startDate, range.endDate) + 1;
+    return { mode: 'range', startDate: addDays(range.startDate, delta * dayCount), endDate: addDays(range.endDate, delta * dayCount) };
   }
 
   return { mode: 'year', year: filter.year + delta };
@@ -100,6 +87,28 @@ export function shiftDateFilter(filter: DateFilter, delta: number): DateFilter {
 export function selectedDayForDateFilter(filter: DateFilter): string {
   if (filter.mode === 'day') return filter.date;
   return dateFilterToRange(filter).startDate;
+}
+
+export function budgetMultiplierForDateFilter(filter: DateFilter): number {
+  if (filter.mode === 'day') {
+    return 1 / daysInMonth(filter.date);
+  }
+
+  if (filter.mode === 'month') return 1;
+  if (filter.mode === 'year') return 12;
+
+  const range = dateFilterToRange(filter);
+  let cursor = range.startDate;
+  let multiplier = 0;
+  while (cursor <= range.endDate) {
+    multiplier += 1 / daysInMonth(cursor);
+    cursor = addDays(cursor, 1);
+  }
+  return multiplier;
+}
+
+export function budgetForDateFilter(monthlyBudgetCents: number, filter: DateFilter): number {
+  return Math.round(monthlyBudgetCents * budgetMultiplierForDateFilter(filter));
 }
 
 export function normalizeRange(startDate: string, endDate: string): DateRange {
@@ -138,6 +147,11 @@ function daysBetween(startDate: string, endDate: string): number {
   const start = parseDate(startDate).getTime();
   const end = parseDate(endDate).getTime();
   return Math.round((end - start) / 86_400_000);
+}
+
+function daysInMonth(dateString: string): number {
+  const date = parseDate(dateString);
+  return new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate();
 }
 
 function addYears(dateString: string, years: number): string {

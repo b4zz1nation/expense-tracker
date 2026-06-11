@@ -16,7 +16,7 @@ import { formatCents } from '../../src/lib/currency';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
 import { getTotalExpenses } from '../../src/db/expensesRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
-import { createDefaultDateFilter, dateFilterExpensesTitle, dateFilterLabel } from '../../src/lib/dateFilter';
+import { createDefaultDateFilter, dateFilterExpensesTitle, dateFilterLabel, budgetForDateFilter } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useAppTheme } from '../../src/theme/ThemeContext';
@@ -103,15 +103,15 @@ export default function DashboardScreen() {
       const category = getBudgetCategory(budgetCategories, id);
       const breakdown = breakdownById.get(id);
       const amountCents = breakdown?.amountCents ?? 0;
-      const periodBudget = category.budgetCents;
+      const periodBudget = budgetForDateFilter(category.budgetCents, dateFilter);
       const percent = periodBudget > 0 ? Math.min(100, Math.round((amountCents / periodBudget) * 100)) : 0;
       return { ...category, amountCents, budgetCents: periodBudget, remainingCents: periodBudget - amountCents, percent, count: breakdown?.count ?? 0 };
     }).sort((a, b) => b.amountCents - a.amountCents || b.budgetCents - a.budgetCents);
-  }, [budgetCategories, categoryBreakdown]);
+  }, [budgetCategories, categoryBreakdown, dateFilter]);
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0 || item.budgetCents > 0);
   const viewPreviewExpenses = expenses.slice(0, 3);
-  const totalBudgetCents = profile?.monthlyBudgetCents ?? 0;
+  const totalBudgetCents = budgetForDateFilter(profile?.monthlyBudgetCents ?? 0, dateFilter);
 
   return (
     <Screen>
@@ -140,7 +140,12 @@ export default function DashboardScreen() {
             <Text style={styles.compactAddButtonText}>Add</Text>
           </Pressable>
         </View>
-        {viewPreviewExpenses.length === 0 && !loading ? (
+        {dateFilter.mode === 'day' ? (
+          <View style={styles.dayTotalCard}>
+            <Text style={styles.dayTotalLabel}>Total for this day</Text>
+            <Text style={styles.dayTotalAmount}>{formatCents(monthlyTotal, displayCurrencyCode)}</Text>
+          </View>
+        ) : viewPreviewExpenses.length === 0 && !loading ? (
           <EmptyState title="No expenses in this view" message="Use the arrows to move between periods, or tap Add for this selection." />
         ) : (
           viewPreviewExpenses.map((expense) => (
@@ -364,6 +369,9 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   summaryRow: { flexDirection: 'row', gap: 10 },
   section: { gap: 10 },
   daySection: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderRadius: 22, borderWidth: StyleSheet.hairlineWidth, padding: spacing.card },
+  dayTotalCard: { backgroundColor: colors.surface, borderColor: colors.primarySoftBorder, borderRadius: 18, borderWidth: StyleSheet.hairlineWidth, gap: 4, padding: 16 },
+  dayTotalLabel: { color: colors.textMuted, fontSize: 12, fontWeight: '800', letterSpacing: 0.3, textTransform: 'uppercase' },
+  dayTotalAmount: { color: colors.text, fontSize: 28, fontWeight: '900' },
   breakdownSection: { marginBottom: 8 },
   sectionHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 10 },
   sectionTitleRow: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 10 },

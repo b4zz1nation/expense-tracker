@@ -2,13 +2,17 @@ import type { ExpenseDraft, ExpenseFormValues } from '../types/expense';
 import { parseMoneyToCents } from './currency';
 
 export function itemizedValuesToExpenseDrafts(values: ExpenseFormValues, currency = 'PHP'): ExpenseDraft[] {
-  const drafts = values.items.map((item) => ({
-    amountCents: parseMoneyToCents(item.amount),
-    currency,
-    categoryId: values.categoryId,
-    note: item.label.trim(),
-    spentOn: values.spentOn,
-  }));
+  const drafts = values.items.map((item) => {
+    const quantity = Number.parseFloat(item.quantity || '1');
+    const safeQuantity = Number.isFinite(quantity) && quantity > 0 ? quantity : 1;
+    return {
+      amountCents: Math.round(parseMoneyToCents(item.amount) * safeQuantity),
+      currency,
+      categoryId: values.categoryId,
+      note: item.label.trim(),
+      spentOn: values.spentOn,
+    };
+  });
 
   const groupNote = values.groupNote.trim();
   if (!groupNote) {

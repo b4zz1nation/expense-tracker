@@ -3,7 +3,9 @@ import { FlashList } from '@shopify/flash-list';
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useState } from 'react';
 import { Alert, Keyboard, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { getCategory, type CategoryId } from '../constants/categories';
+import { getCategoryTotalForRange } from '../db/expensesRepo';
 import { formatCents } from '../lib/currency';
+import { budgetForDateFilter, dateFilterToRange, type DateFilter } from '../lib/dateFilter';
 import { todayDateString } from '../lib/dates';
 import { expenseSchema } from '../schemas/expenseSchema';
 import { useAppTheme } from '../theme/ThemeContext';
@@ -23,11 +25,12 @@ function extractGroupNote(note?: string | null): string {
   return separatorIndex >= 0 ? note.slice(0, separatorIndex) : '';
 }
 
-function createFormItem(label = '', amount = ''): ExpenseFormItem {
+function createFormItem(label = '', amount = '', quantity = '1'): ExpenseFormItem {
   return {
     id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
     label,
     amount,
+    quantity,
   };
 }
 
@@ -54,14 +57,16 @@ type Props = {
   categories?: BudgetCategory[];
   defaultCategoryId?: string;
   lockedCategoryId?: string;
+  showInlineAddButton?: boolean;
 };
 
 export type ExpenseFormHandle = {
   submit: () => void;
+  addItem: () => void;
 };
 
 export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function ExpenseForm(
-  { initialExpense, onSubmit, onDelete, submitLabel, showSubmitButton = true, metaFieldsLayout = 'column', currencyCode, categories = [], defaultCategoryId, lockedCategoryId },
+  { initialExpense, onSubmit, onDelete, submitLabel, showSubmitButton = true, metaFieldsLayout = 'column', currencyCode, categories = [], defaultCategoryId, lockedCategoryId, showInlineAddButton = true },
   ref
 ) {
   const { theme } = useAppTheme();
@@ -82,7 +87,8 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
       ? initialExpense.items.map((item, index) => ({
           id: `${initialExpense.id}-${index}`,
           label: item.label,
-          amount: centsToInput(item.amountCents),
+          amount: centsToInput(item.baseAmountCents ?? item.amountCents),
+          quantity: String(item.quantity ?? 1),
         }))
       : [createFormItem(initialExpense.note, centsToInput(initialExpense.amountCents))];
 
@@ -106,7 +112,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   const [itemDraftIndex, setItemDraftIndex] = useState<number | null>(null);
   const [itemDraftLabel, setItemDraftLabel] = useState('');
   const [itemDraftAmount, setItemDraftAmount] = useState('');
+  const [itemDraftQuantity, setItemDraftQuantity] = useState('1');
   const [itemDraftError, setItemDraftError] = useState<string | null>(null);
+  const [categorySpentCents, setCategorySpentCents] = useState(0);
 
   const selectedCategory = getCategory(values.categoryId, categories);
   const labels = ITEM_LABELS[values.categoryId] ?? { heading: `${selectedCategory.name} items`, add: 'Add item', edit: 'Edit item', singular: 'item', placeholder: 'What did you buy?' };
@@ -119,8 +127,13 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   const displayCurrencyCode = currencyCode ?? initialExpense?.currency ?? 'PHP';
   const itemTotalCents = values.items.reduce((total, item) => {
     const amount = Number.parseFloat(item.amount);
-    return Number.isFinite(amount) && amount > 0 ? total + Math.round(amount * 100) : total;
+    const quantity = Number.parseFloat(item.quantity || '1');
+    return Number.isFinite(amount) && amount > 0 && Number.isFinite(quantity) && quantity > 0
+      ? total + Math.round(amount * quantity * 100)
+      : total;
   }, 0);
+  const activeMonthFilter: DateFilter = { mode: 'month', month: /^\d{4}-\d{2}/.test(values.spentOn) ? values.spentOn.slice(0, 7) : todayDateString().slice(0, 7) };
+  const categoryBudgetLeftCents = budgetForDateFilter(selectedCategory.budgetCents, activeMonthFilter) - categorySpentCents;
   const updateItem = (id: string | undefined, changes: Partial<ExpenseFormItem>) => {
     setValues((current) => ({
       ...current,
@@ -134,6 +147,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
     setItemDraftIndex(index);
     setItemDraftLabel(item?.label ?? '');
     setItemDraftAmount(item?.amount ?? '');
+    setItemDraftQuantity(item?.quantity ?? '1');
     setItemDraftError(null);
     setKeyboardVisible(false);
     setKeyboardLift(0);
@@ -164,6 +178,20 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   useEffect(() => {
     setValues((current) => (current.categoryId === initialValues.categoryId ? current : { ...current, categoryId: initialValues.categoryId }));
   }, [initialValues.categoryId]);
+
+  useEffect(() => {
+    let alive = true;
+    void getCategoryTotalForRange(values.categoryId, dateFilterToRange(activeMonthFilter))
+      .then((spent) => {
+        if (alive) setCategorySpentCents(spent);
+      })
+      .catch(() => {
+        if (alive) setCategorySpentCents(0);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [activeMonthFilter.month, values.categoryId]);
 
   useEffect(() => {
     const showSubscription = Keyboard.addListener('keyboardDidShow', (event) => {
@@ -211,21 +239,23 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
   const saveItemDraft = () => {
     const label = itemDraftLabel.trim();
     const amount = itemDraftAmount.trim();
+    const quantity = itemDraftQuantity.trim() || '1';
     const amountValue = Number.parseFloat(amount);
+    const quantityValue = Number.parseFloat(quantity);
 
-    if (!label || !Number.isFinite(amountValue) || amountValue <= 0) {
-      setItemDraftError('Enter an item name and a valid price.');
+    if (!label || !Number.isFinite(amountValue) || amountValue <= 0 || !Number.isFinite(quantityValue) || quantityValue <= 0) {
+      setItemDraftError('Enter an item name, valid price, and quantity.');
       return;
     }
 
     setValues((current) => {
       if (itemDraftIndex === null) {
-        return { ...current, items: [...current.items, createFormItem(label, amount)] };
+        return { ...current, items: [...current.items, createFormItem(label, amount, quantity)] };
       }
 
       return {
         ...current,
-        items: current.items.map((item, index) => (index === itemDraftIndex ? { ...item, label, amount } : item)),
+        items: current.items.map((item, index) => (index === itemDraftIndex ? { ...item, label, amount, quantity } : item)),
       };
     });
     closeItemModal();
@@ -262,7 +292,10 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
     submit: () => {
       void submit();
     },
-  }), [submit]);
+    addItem: () => {
+      openItemModal();
+    },
+  }), [submit, openItemModal]);
 
   const deleteExpense = async () => {
     if (!onDelete) return;
@@ -295,6 +328,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
           <Text style={styles.summaryLabel}>{labels.heading}</Text>
         </View>
         <Text style={styles.summaryTotal}>{formatCents(itemTotalCents, displayCurrencyCode)}</Text>
+        {!initialExpense ? (
+          <Text style={styles.summaryHint}>{categoryBudgetLeftCents < 0 ? 'Over budget by' : 'Budget left'} {formatCents(Math.abs(categoryBudgetLeftCents), displayCurrencyCode)}</Text>
+        ) : null}
       </View>
 
       <View style={styles.field}>
@@ -366,8 +402,9 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                       {item.label || labels.placeholder}
                     </Text>
                   </View>
-                  <Text style={styles.foodItemAmount}>{item.amount ? formatCents(Math.round(Number.parseFloat(item.amount) * 100), displayCurrencyCode) : formatCents(0, displayCurrencyCode)}</Text>
+                  <Text style={styles.foodItemAmount}>{item.amount ? formatCents(Math.round(Number.parseFloat(item.amount) * (Number.parseFloat(item.quantity || '1') || 1) * 100), displayCurrencyCode) : formatCents(0, displayCurrencyCode)}</Text>
                 </View>
+                <Text style={styles.foodItemHint}>Qty {item.quantity || '1'} × {item.amount ? formatCents(Math.round(Number.parseFloat(item.amount) * 100), displayCurrencyCode) : formatCents(0, displayCurrencyCode)}</Text>
               </View>
             </Pressable>
           )}
@@ -377,7 +414,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
           ListEmptyComponent={<Text style={styles.helper}>Add your first {labels.singular}.</Text>}
         />
 
-        <AppButton onPress={() => openItemModal()} variant="secondary" disabled={values.items.length >= 25}>＋ {labels.add}</AppButton>
+        {showInlineAddButton ? <AppButton onPress={() => openItemModal()} variant="secondary" disabled={values.items.length >= 25}>＋ {labels.add}</AppButton> : null}
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -457,15 +494,27 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
                   maxLength={120}
                   autoFocus
                 />
-                <TextInput
-                  placeholder="Price"
-                  placeholderTextColor={colors.textMuted}
-                  selectionColor={colors.primary}
-                  value={itemDraftAmount}
-                  onChangeText={setItemDraftAmount}
-                  style={styles.amountInput}
-                  keyboardType="decimal-pad"
-                />
+                <View style={styles.compactRow}>
+                  <TextInput
+                    placeholder="Base price"
+                    placeholderTextColor={colors.textMuted}
+                    selectionColor={colors.primary}
+                    value={itemDraftAmount}
+                    onChangeText={setItemDraftAmount}
+                    style={[styles.amountInput, styles.flexInput]}
+                    keyboardType="decimal-pad"
+                  />
+                  <TextInput
+                    placeholder="Qty"
+                    placeholderTextColor={colors.textMuted}
+                    selectionColor={colors.primary}
+                    value={itemDraftQuantity}
+                    onChangeText={setItemDraftQuantity}
+                    style={[styles.amountInput, styles.quantityInput]}
+                    keyboardType="decimal-pad"
+                  />
+                </View>
+                <Text style={styles.helper}>Item total: {formatCents(Math.round((Number.parseFloat(itemDraftAmount) || 0) * (Number.parseFloat(itemDraftQuantity || '1') || 1) * 100), displayCurrencyCode)}</Text>
                 {itemDraftError ? <Text style={styles.error}>{itemDraftError}</Text> : null}
                 <View style={styles.modalActions}>
                   {itemDraftIndex !== null ? (
@@ -570,6 +619,7 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
   pressed: { opacity: 0.8 },
   compactRow: { flexDirection: 'row', gap: 10, alignItems: 'center' },
   flexInput: { flex: 1, minWidth: 0 },
+  quantityInput: { width: 92 },
   compactAmountInput: { width: 104, textAlign: 'right' },
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', padding: 20 },
   modalCard: { backgroundColor: colors.surface, borderRadius: 20, padding: 16, gap: 12 },

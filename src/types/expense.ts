@@ -3,6 +3,8 @@ import type { CategoryId } from '../constants/categories';
 export type ExpenseLineItem = {
   label: string;
   amountCents: number;
+  baseAmountCents?: number;
+  quantity?: number;
 };
 
 export type Expense = {
@@ -23,6 +25,7 @@ export type ExpenseFormItem = {
   id?: string;
   label: string;
   amount: string;
+  quantity: string;
 };
 
 export type ExpenseFormValues = {

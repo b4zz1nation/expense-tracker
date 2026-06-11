@@ -13,7 +13,7 @@ import { useExpenses } from '../../src/hooks/useExpenses';
 import { useProfile } from '../../src/hooks/useProfile';
 import { getBudgetCategory } from '../../src/lib/categoryBudgets';
 import { formatCents } from '../../src/lib/currency';
-import { createDefaultDateFilter, dateFilterLabel } from '../../src/lib/dateFilter';
+import { createDefaultDateFilter, dateFilterLabel, budgetForDateFilter } from '../../src/lib/dateFilter';
 import { useAppTheme } from '../../src/theme/ThemeContext';
 
 export default function CategoryDetailScreen() {
@@ -31,7 +31,7 @@ export default function CategoryDetailScreen() {
   const category = getBudgetCategory(categories, categoryId ?? 'other');
   const categoryExpenses = useMemo(() => expenses.filter((expense) => expense.categoryId === category.id), [category.id, expenses]);
   const spent = categoryExpenses.reduce((total, expense) => total + expense.amountCents, 0);
-  const budget = category.budgetCents;
+  const budget = budgetForDateFilter(category.budgetCents, dateFilter);
   const remaining = budget - spent;
 
   useFocusEffect(useCallback(() => {

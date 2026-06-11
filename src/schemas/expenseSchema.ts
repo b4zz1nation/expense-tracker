@@ -15,6 +15,10 @@ export const expenseItemSchema = z.object({
   id: z.string().optional(),
   label: z.string().trim().min(1, 'Item name is required.').max(120, 'Item name must be 120 characters or less.'),
   amount: z.string().trim().min(1, 'Item amount is required.').refine(isValidMoney, 'Enter a valid amount greater than 0.'),
+  quantity: z.string().trim().min(1, 'Quantity is required.').refine((value) => {
+    const parsed = Number.parseFloat(value);
+    return Number.isFinite(parsed) && parsed > 0;
+  }, 'Enter a quantity greater than 0.'),
 });
 
 export const expenseSchema = z.object({

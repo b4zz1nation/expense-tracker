@@ -5,7 +5,7 @@ describe('expense schema', () => {
     categoryId: 'food',
     spentOn: '2026-06-02',
     groupNote: '',
-    items: [{ label: 'Lunch', amount: '12.34' }],
+    items: [{ label: 'Lunch', amount: '12.34', quantity: '1' }],
   };
 
   it('accepts a valid itemized expense form', () => {
@@ -18,9 +18,9 @@ describe('expense schema', () => {
       spentOn: '2026-06-02',
       groupNote: 'Team lunch',
       items: [
-        { label: 'Burger', amount: '8.50' },
-        { label: 'Fries', amount: '3.25' },
-        { label: 'Drink', amount: '2.00' },
+        { label: 'Burger', amount: '8.50', quantity: '1' },
+        { label: 'Fries', amount: '3.25', quantity: '1' },
+        { label: 'Drink', amount: '2.00', quantity: '1' },
       ],
     });
 
@@ -35,7 +35,7 @@ describe('expense schema', () => {
     expect(expenseSchema.safeParse({ ...valid, items: [{ label: 'Burger', amount: '0' }] }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, categoryId: '' }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, spentOn: '2026-02-31' }).success).toBe(false);
-    expect(expenseSchema.safeParse({ ...valid, items: [{ label: '', amount: '8.50' }] }).success).toBe(false);
+    expect(expenseSchema.safeParse({ ...valid, items: [{ label: '', amount: '8.50', quantity: '1' }] }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, items: [] }).success).toBe(false);
     expect(expenseSchema.safeParse({ ...valid, groupNote: 'x'.repeat(81) }).success).toBe(false);
   });

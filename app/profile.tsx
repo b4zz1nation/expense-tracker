@@ -1,6 +1,6 @@
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useNavigation } from 'expo-router';
 import { Check, Edit3 } from 'lucide-react-native';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { Alert, Keyboard, LayoutAnimation, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { CategoryBudgetEditor } from '../src/components/CategoryBudgetEditor';
 import { CategoryIcon } from '../src/components/CategoryIcon';
@@ -16,6 +16,7 @@ export default function ProfileScreen() {
   const { theme } = useAppTheme();
   const { colors } = theme;
   const styles = useMemo(() => createStyles(theme), [theme]);
+  const navigation = useNavigation();
   const { profile, loadingProfile, refreshProfile, updateProfile } = useProfile();
   const [name, setName] = useState('');
   const [categoryBudgets, setCategoryBudgets] = useState<BudgetCategory[]>(DEFAULT_BUDGET_CATEGORIES);
@@ -58,6 +59,23 @@ export default function ProfileScreen() {
     }
   };
 
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={editing ? 'Save profile' : 'Edit profile'}
+          disabled={saving || loadingProfile}
+          onPress={editing ? save : startEditing}
+          style={({ pressed }) => [styles.headerAction, editing && styles.headerActionPrimary, pressed && styles.pressed, (saving || loadingProfile) && styles.disabled]}
+        >
+          {editing ? <Check color={colors.onPrimary} size={18} strokeWidth={2.8} /> : <Edit3 color={colors.primary} size={18} strokeWidth={2.6} />}
+          <Text style={[styles.headerActionText, editing && styles.headerActionTextPrimary]}>{editing ? (saving ? 'Saving…' : 'Done') : 'Edit'}</Text>
+        </Pressable>
+      ),
+    });
+  }, [colors.onPrimary, colors.primary, editing, loadingProfile, navigation, saving, styles]);
+
   return (
     <Screen keyboardAware>
       <View style={styles.headerCard}>
@@ -84,16 +102,6 @@ export default function ProfileScreen() {
           )}
           <Text style={styles.subtitle}>{editing ? 'Edit your name and category budgets.' : 'Your category budgets and profile details.'}</Text>
         </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={editing ? 'Save profile' : 'Edit profile'}
-          disabled={saving || loadingProfile}
-          onPress={editing ? save : startEditing}
-          style={({ pressed }) => [styles.headerAction, editing && styles.headerActionPrimary, pressed && styles.pressed, (saving || loadingProfile) && styles.disabled]}
-        >
-          {editing ? <Check color={colors.onPrimary} size={18} strokeWidth={2.8} /> : <Edit3 color={colors.primary} size={18} strokeWidth={2.6} />}
-          <Text style={[styles.headerActionText, editing && styles.headerActionTextPrimary]}>{editing ? (saving ? 'Saving…' : 'Done') : 'Edit'}</Text>
-        </Pressable>
       </View>
 
       <CategoryBudgetEditor

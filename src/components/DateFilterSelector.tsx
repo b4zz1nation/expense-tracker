@@ -5,9 +5,11 @@ import Calendar from 'react-native-calendars/src/calendar';
 import type { DateData } from 'react-native-calendars/src/types';
 import {
   createDefaultDateFilter,
+  createTodayDateFilter,
   dateFilterHelper,
   dateFilterLabel,
   dateFilterToRange,
+  normalizeRange,
   selectedDayForDateFilter,
   shiftDateFilter,
   yearsAround,
@@ -35,8 +37,7 @@ type Marking = {
 const MODES: Array<{ mode: DateFilterMode; label: string }> = [
   { mode: 'day', label: 'Day' },
   { mode: 'month', label: 'Month' },
-  { mode: 'range90', label: '90-day' },
-  { mode: 'rangeYear', label: '1-year' },
+  { mode: 'range', label: 'Range' },
   { mode: 'year', label: 'Yearly' },
 ];
 
@@ -85,19 +86,15 @@ export function DateFilterSelector({ value, onChange }: Props) {
     if (mode === draft.mode) return;
     const selectedDay = selectedDayForDateFilter(draft);
     if (mode === 'day') {
-      setDraft({ mode: 'day', date: selectedDay });
+      setDraft(createTodayDateFilter());
       return;
     }
     if (mode === 'month') {
       setDraft({ mode: 'month', month: selectedDay.slice(0, 7) });
       return;
     }
-    if (mode === 'range90') {
-      setDraft({ mode: 'range90', startDate: selectedDay });
-      return;
-    }
-    if (mode === 'rangeYear') {
-      setDraft({ mode: 'rangeYear', startDate: selectedDay });
+    if (mode === 'range') {
+      setDraft({ mode: 'range', startDate: selectedDay, endDate: selectedDay });
       return;
     }
     setDraft({ mode: 'year', year: Number(selectedDay.slice(0, 4)) });
@@ -109,17 +106,17 @@ export function DateFilterSelector({ value, onChange }: Props) {
       setDraft({ mode: 'day', date: dateString });
       return;
     }
-    if (draft.mode === 'range90') {
-      setDraft({ mode: 'range90', startDate: dateString });
-      return;
-    }
-    if (draft.mode === 'rangeYear') {
-      setDraft({ mode: 'rangeYear', startDate: dateString });
+    if (draft.mode === 'range') {
+      const range = dateFilterToRange(draft);
+      const nextRange = dateString < range.startDate || range.startDate !== range.endDate
+        ? { startDate: dateString, endDate: dateString }
+        : normalizeRange(range.startDate, dateString);
+      setDraft({ mode: 'range', ...nextRange });
     }
   };
 
   const nudge = (delta: number) => onChange(shiftDateFilter(value, delta));
-  const showsCalendar = draft.mode === 'day' || draft.mode === 'range90' || draft.mode === 'rangeYear';
+  const showsCalendar = draft.mode === 'day' || draft.mode === 'range';
 
   return (
     <>
@@ -149,7 +146,7 @@ export function DateFilterSelector({ value, onChange }: Props) {
             <View style={styles.header}>
               <View>
                 <Text style={styles.title}>Select date</Text>
-                <Text style={styles.subtitle}>Day, month, 90-day span, 1-year span, or yearly view</Text>
+                <Text style={styles.subtitle}>Day, month, custom range, or yearly view</Text>
               </View>
               <Pressable accessibilityLabel="Close date selector" accessibilityRole="button" onPress={closePicker} style={styles.closeButton}>
                 <X color={colors.textMuted} size={20} strokeWidth={2.6} />
@@ -234,7 +231,7 @@ export function DateFilterSelector({ value, onChange }: Props) {
             ) : null}
 
             <View style={styles.actions}>
-              <Pressable onPress={() => setDraft(createDefaultDateFilter())} style={styles.secondaryAction}>
+              <Pressable onPress={() => setDraft(draft.mode === 'day' ? createTodayDateFilter() : createDefaultDateFilter())} style={styles.secondaryAction}>
                 <Text style={styles.secondaryActionText}>Today</Text>
               </Pressable>
               <Pressable onPress={applyDraft} style={styles.primaryAction}>
