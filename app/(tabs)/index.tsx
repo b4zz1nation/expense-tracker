@@ -1,11 +1,12 @@
 import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, type BottomSheetBackdropProps } from '@gorhom/bottom-sheet';
-import { CalendarCheck, Plus, X } from 'lucide-react-native';
+import { CalendarCheck, ChevronLeft, Plus, X } from 'lucide-react-native';
 import { AnimatedCircularProgress } from 'react-native-circular-progress';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, View, Easing } from 'react-native';
+import { ActivityIndicator, Animated, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View, Easing } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { EmptyState } from '../../src/components/EmptyState';
+import { ExpenseForm, type ExpenseFormHandle } from '../../src/components/ExpenseForm';
 import { ExpenseItem } from '../../src/components/ExpenseItem';
 import { Screen } from '../../src/components/Screen';
 import { TotalBudgetCard } from '../../src/components/TotalBudgetCard';
@@ -13,32 +14,38 @@ import { CategoryIcon } from '../../src/components/CategoryIcon';
 import { useExpenseSheet } from '../../src/context/ExpenseSheetContext';
 import { getBudgetCategory } from '../../src/lib/categoryBudgets';
 import { formatCents } from '../../src/lib/currency';
+import { createExpenses } from '../../src/db/expensesRepo';
 import { getPreferredCurrencyCode } from '../../src/db/settingsRepo';
 import { DateFilterSelector } from '../../src/components/DateFilterSelector';
 import { createDefaultDateFilter, dateFilterExpensesTitle, dateFilterLabel, budgetForDateFilter } from '../../src/lib/dateFilter';
 import { useExpenses } from '../../src/hooks/useExpenses';
 import { useProfile } from '../../src/hooks/useProfile';
 import { useAppTheme } from '../../src/theme/ThemeContext';
-import type { Expense } from '../../src/types/expense';
+import type { Expense, ExpenseFormValues } from '../../src/types/expense';
 
 export default function DashboardScreen() {
-  const router = useRouter();
   const { theme } = useAppTheme();
   const styles = createStyles(theme);
   const { colors } = theme;
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
   const { setSheetOpen } = useExpenseSheet();
   const [dateFilter, setDateFilter] = useState(createDefaultDateFilter());
   const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null);
   const [sheetError, setSheetError] = useState<string | null>(null);
   const [categoryModalOpen, setCategoryModalOpen] = useState(false);
-  const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
+  const [dayExpensesModalOpen, setDayExpensesModalOpen] = useState(false);
+  const [dayModalMode, setDayModalMode] = useState<'list' | 'add'>('list');
+  const [dayAddFormKey, setDayAddFormKey] = useState(0);
   const [displayCurrencyCode, setDisplayCurrencyCode] = useState('PHP');
   const { expenses, monthlyTotal, categoryBreakdown, loading, error, refresh } = useExpenses(dateFilter);
   const { profile, refreshProfile } = useProfile();
   const expenseSheetRef = useRef<BottomSheetModal>(null);
+  const dayAddFormRef = useRef<ExpenseFormHandle>(null);
+  const dayModalSlide = useRef(new Animated.Value(0)).current;
   const sheetSnapPoints = useMemo(() => ['68%', '96%'], []);
   const sheetBottomInset = Math.max(insets.bottom, 12);
+  const dayModalPageWidth = Math.max(280, windowWidth - 68);
 
   useFocusEffect(
     useCallback(() => {
@@ -62,6 +69,15 @@ export default function DashboardScreen() {
 
     return () => cancelAnimationFrame(frame);
   }, [selectedExpense]);
+
+  useEffect(() => {
+    Animated.timing(dayModalSlide, {
+      toValue: dayModalMode === 'add' ? -dayModalPageWidth : 0,
+      duration: 280,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [dayModalMode, dayModalPageWidth, dayModalSlide]);
 
   const renderSheetBackdrop = useCallback(
     (props: BottomSheetBackdropProps) => (
@@ -92,6 +108,24 @@ export default function DashboardScreen() {
     expenseSheetRef.current?.dismiss();
   };
 
+  const openDayExpensesModal = () => {
+    setDayModalMode('list');
+    setDayAddFormKey((current) => current + 1);
+    setDayExpensesModalOpen(true);
+  };
+
+  const closeDayExpensesModal = () => {
+    setDayExpensesModalOpen(false);
+    setDayModalMode('list');
+  };
+
+  const submitDayExpense = async (values: ExpenseFormValues) => {
+    await createExpenses(values, displayCurrencyCode);
+    await refresh();
+    setDayAddFormKey((current) => current + 1);
+    setDayModalMode('list');
+  };
+
   const budgetCategories = profile?.categoryBudgets ?? [];
   const categorySummaries = useMemo(() => {
     const breakdownById = new Map(categoryBreakdown.map((item) => [item.categoryId, item]));
@@ -108,6 +142,9 @@ export default function DashboardScreen() {
 
   const visibleCategorySummaries = categorySummaries.filter((item) => item.amountCents > 0 || item.budgetCents > 0);
   const dayViewExpenses = dateFilter.mode === 'day' ? expenses.filter((expense) => expense.spentOn === dateFilter.date) : [];
+  const modalExpenses = dateFilter.mode === 'day' ? dayViewExpenses : expenses;
+  const modalDateLabel = dateFilterLabel(dateFilter);
+  const modalDefaultSpentOn = dateFilter.mode === 'day' ? dateFilter.date : undefined;
   const viewPreviewExpenses = expenses.slice(0, 3);
   const totalBudgetCents = budgetForDateFilter(profile?.monthlyBudgetCents ?? 0, dateFilter);
 
@@ -133,14 +170,13 @@ export default function DashboardScreen() {
               <Text style={styles.sectionSubtitle}>{dateFilterLabel(dateFilter)} · {formatCents(monthlyTotal, displayCurrencyCode)}</Text>
             </View>
           </View>
-          <Pressable accessibilityRole="button" onPress={() => setAddCategoryModalOpen(true)} style={styles.compactAddButton}>
-            <Plus color={colors.onPrimary} size={14} strokeWidth={3} />
-            <Text style={styles.compactAddButtonText}>Add</Text>
+          <Pressable accessibilityRole="button" onPress={openDayExpensesModal} style={styles.compactAddButton}>
+            <Text style={styles.compactAddButtonText}>View</Text>
           </Pressable>
         </View>
         {dateFilter.mode === 'day' ? (
           dayViewExpenses.length === 0 && !loading ? (
-            <EmptyState title="No expenses for this day" message="Use the arrows to move between days, or tap Add for this date." />
+            <EmptyState title="No expenses for this day" message="Use the arrows to move between days, or tap View to add from the day modal." />
           ) : (
             dayViewExpenses.map((expense) => (
               <ExpenseItem key={expense.id} expense={expense} currencyCode={displayCurrencyCode} categories={budgetCategories} onPress={() => openExpenseSheet(expense)} />
@@ -261,6 +297,112 @@ export default function DashboardScreen() {
         </BottomSheetModal>
       ) : null}
 
+      <Modal visible={dayExpensesModalOpen} transparent animationType="fade" onRequestClose={closeDayExpensesModal}>
+        <View style={styles.modalOverlay}>
+          <Pressable style={StyleSheet.absoluteFill} onPress={closeDayExpensesModal} />
+          <View style={[styles.modalCard, styles.dayExpensesModalCard]}>
+            <Animated.View
+              style={[
+                styles.dayModalPager,
+                { width: dayModalPageWidth * 2, transform: [{ translateX: dayModalSlide }] },
+              ]}
+            >
+              <View style={[styles.dayModalPage, { width: dayModalPageWidth }]}>
+                <View style={styles.modalHeader}>
+                  <View style={styles.modalHeaderText}>
+                    <Text style={styles.modalTitle}>All expenses</Text>
+                    <Text style={styles.modalSubtitle}>{modalDateLabel} · {formatCents(modalExpenses.reduce((sum, expense) => sum + expense.amountCents, 0), displayCurrencyCode)}</Text>
+                  </View>
+                  <Pressable onPress={() => setDayModalMode('add')} accessibilityRole="button" style={styles.modalAddButton}>
+                    <Plus color={colors.onPrimary} size={15} strokeWidth={3} />
+                    <Text style={styles.modalAddButtonText}>Add</Text>
+                  </Pressable>
+                  <Pressable onPress={closeDayExpensesModal} accessibilityRole="button" style={styles.closeButton}>
+                    <X color={colors.textMuted} size={20} strokeWidth={2.6} />
+                  </Pressable>
+                </View>
+
+                <ScrollView
+                  style={styles.modalList}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.modalListContent}
+                  keyboardShouldPersistTaps="handled"
+                  nestedScrollEnabled
+                  overScrollMode="always"
+                  bounces
+                  alwaysBounceVertical
+                >
+                  {modalExpenses.length === 0 ? (
+                    <EmptyState title="No expenses logged" message="Tap Add to create an expense without leaving this day." />
+                  ) : (
+                    modalExpenses.map((expense) => (
+                      <ExpenseItem
+                        key={expense.id}
+                        expense={expense}
+                        currencyCode={displayCurrencyCode}
+                        categories={budgetCategories}
+                        onPress={() => {
+                          closeDayExpensesModal();
+                          openExpenseSheet(expense);
+                        }}
+                      />
+                    ))
+                  )}
+                </ScrollView>
+              </View>
+
+              <View style={[styles.dayModalPage, { width: dayModalPageWidth }]}>
+                <View style={styles.modalHeader}>
+                  <Pressable onPress={() => setDayModalMode('list')} accessibilityRole="button" accessibilityLabel="Back to expense list" style={styles.backButton}>
+                    <ChevronLeft color={colors.text} size={22} strokeWidth={2.7} />
+                  </Pressable>
+                  <View style={styles.modalHeaderText}>
+                    <Text style={styles.modalTitle}>Add expense</Text>
+                    <Text style={styles.modalSubtitle}>{modalDefaultSpentOn ? `For ${modalDateLabel}` : 'Create a new logged expense'}</Text>
+                  </View>
+                  <Pressable onPress={() => setDayModalMode('list')} accessibilityRole="button" style={styles.closeButton}>
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </Pressable>
+                </View>
+
+                <ScrollView
+                  style={styles.modalList}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={[styles.modalListContent, { paddingBottom: 86 + sheetBottomInset }]}
+                  keyboardShouldPersistTaps="handled"
+                  keyboardDismissMode="none"
+                  nestedScrollEnabled
+                  overScrollMode="always"
+                  bounces
+                  alwaysBounceVertical
+                >
+                  <ExpenseForm
+                    key={dayAddFormKey}
+                    ref={dayAddFormRef}
+                    submitLabel="Save Expense"
+                    onSubmit={submitDayExpense}
+                    currencyCode={displayCurrencyCode}
+                    categories={budgetCategories}
+                    defaultSpentOn={modalDefaultSpentOn}
+                    showSubmitButton={false}
+                    showInlineAddButton={false}
+                  />
+                </ScrollView>
+
+                <View style={[styles.dayModalFooter, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+                  <Pressable onPress={() => dayAddFormRef.current?.addItem()} accessibilityRole="button" style={[styles.footerButton, styles.footerSecondary]}>
+                    <Text style={styles.footerSecondaryText}>＋ Add Item</Text>
+                  </Pressable>
+                  <Pressable onPress={() => dayAddFormRef.current?.submit()} accessibilityRole="button" style={[styles.footerButton, styles.footerPrimary]}>
+                    <Text style={styles.footerPrimaryText}>Save</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </Animated.View>
+          </View>
+        </View>
+      </Modal>
+
       <Modal visible={categoryModalOpen} transparent animationType="fade" onRequestClose={() => setCategoryModalOpen(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setCategoryModalOpen(false)} />
@@ -321,38 +463,6 @@ export default function DashboardScreen() {
                     <Text style={styles.modalPercent}>{item.percent}%</Text>
                   </View>
                 </View>
-              ))}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-
-      <Modal visible={addCategoryModalOpen} transparent animationType="fade" onRequestClose={() => setAddCategoryModalOpen(false)}>
-        <View style={styles.modalOverlay}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => setAddCategoryModalOpen(false)} />
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.modalHeaderText}>
-                <Text style={styles.modalTitle}>Choose category first</Text>
-                <Text style={styles.modalSubtitle}>Your expense will start with this category selected.</Text>
-              </View>
-              <Pressable onPress={() => setAddCategoryModalOpen(false)} accessibilityRole="button" style={styles.closeButton}>
-                <X color={colors.textMuted} size={20} strokeWidth={2.6} />
-              </Pressable>
-            </View>
-            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false} contentContainerStyle={styles.modalListContent}>
-              {budgetCategories.map((category) => (
-                <Pressable key={category.id} style={styles.modalRow} onPress={() => { setAddCategoryModalOpen(false); router.push(`/expenses/new?categoryId=${encodeURIComponent(category.id)}`); }}>
-                  <View style={styles.modalLeft}>
-                    <CategoryIcon categoryId={category.id} emoji={category.emoji} size={28} />
-                    <View style={styles.breakdownTextBlock}>
-                      <Text style={styles.breakdownLabel}>{category.name}</Text>
-                      <Text style={styles.breakdownMeta}>Budget {formatCents(category.budgetCents, displayCurrencyCode)}</Text>
-                    </View>
-                  </View>
-                  <Plus color={colors.primary} size={20} strokeWidth={2.7} />
-                </Pressable>
               ))}
             </ScrollView>
           </View>
@@ -438,6 +548,19 @@ function createStyles(theme: ReturnType<typeof useAppTheme>['theme']) {
 
   modalOverlay: { flex: 1, backgroundColor: colors.overlay, justifyContent: 'center', paddingHorizontal: 16 },
   modalCard: { backgroundColor: colors.surface, borderRadius: 24, padding: 18, gap: 14, maxHeight: '82%' },
+  dayExpensesModalCard: { overflow: 'hidden', padding: 16, width: '100%' },
+  dayModalPager: { flexDirection: 'row' },
+  dayModalPage: { gap: 14, maxHeight: '100%' },
+  dayModalFooter: { position: 'absolute', left: 0, right: 0, bottom: 0, flexDirection: 'row', gap: 10, paddingHorizontal: 16, paddingTop: 12, backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: StyleSheet.hairlineWidth },
+  modalAddButton: { alignItems: 'center', backgroundColor: colors.primary, borderRadius: 999, flexDirection: 'row', gap: 4, paddingHorizontal: 11, paddingVertical: 7 },
+  modalAddButtonText: { color: colors.onPrimary, fontSize: 12, fontWeight: '900' },
+  backButton: { alignItems: 'center', backgroundColor: colors.background, borderColor: colors.border, borderRadius: 999, borderWidth: StyleSheet.hairlineWidth, height: 36, justifyContent: 'center', width: 36 },
+  cancelText: { color: colors.textMuted, fontSize: 13, fontWeight: '800' },
+  footerButton: { alignItems: 'center', borderRadius: 999, flex: 1, justifyContent: 'center', minHeight: 48, paddingHorizontal: 16 },
+  footerSecondary: { backgroundColor: colors.primarySoft, borderColor: colors.primarySoftBorder, borderWidth: StyleSheet.hairlineWidth },
+  footerPrimary: { backgroundColor: colors.primary },
+  footerSecondaryText: { color: colors.primaryPressed, fontWeight: '900' },
+  footerPrimaryText: { color: colors.onPrimary, fontWeight: '900' },
   modalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   modalHeaderText: { flex: 1, gap: 2 },
   modalTitle: { color: colors.text, fontSize: 20, fontWeight: '900' },

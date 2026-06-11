@@ -56,6 +56,7 @@ type Props = {
   currencyCode?: string;
   categories?: BudgetCategory[];
   defaultCategoryId?: string;
+  defaultSpentOn?: string;
   lockedCategoryId?: string;
   showInlineAddButton?: boolean;
 };
@@ -66,7 +67,7 @@ export type ExpenseFormHandle = {
 };
 
 export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function ExpenseForm(
-  { initialExpense, onSubmit, onDelete, submitLabel, showSubmitButton = true, metaFieldsLayout = 'column', currencyCode, categories = [], defaultCategoryId, lockedCategoryId, showInlineAddButton = true },
+  { initialExpense, onSubmit, onDelete, submitLabel, showSubmitButton = true, metaFieldsLayout = 'column', currencyCode, categories = [], defaultCategoryId, defaultSpentOn, lockedCategoryId, showInlineAddButton = true },
   ref
 ) {
   const { theme } = useAppTheme();
@@ -77,7 +78,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
     if (!initialExpense) {
       return {
         categoryId: lockedCategoryId ?? defaultCategoryId ?? categories[0]?.id ?? 'food',
-        spentOn: todayDateString(),
+        spentOn: defaultSpentOn ?? todayDateString(),
         groupNote: '',
         items: [],
       };
@@ -98,7 +99,7 @@ export const ExpenseForm = forwardRef<ExpenseFormHandle, Props>(function Expense
       groupNote: initialExpense.items.length > 1 ? initialExpense.note : extractGroupNote(initialExpense.note),
       items,
     };
-  }, [categories, defaultCategoryId, initialExpense, lockedCategoryId]);
+  }, [categories, defaultCategoryId, defaultSpentOn, initialExpense, lockedCategoryId]);
 
   const [values, setValues] = useState(initialValues);
   const [error, setError] = useState<string | null>(null);
